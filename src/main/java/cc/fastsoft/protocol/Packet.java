@@ -3,9 +3,9 @@ package cc.fastsoft.protocol;
 import io.netty.buffer.ByteBuf;
 
 public class Packet {
-    public int payloadLength;
-    public byte sequenceId;
-    public ByteBuf payload;
+    private int payloadLength; // 3 bytes
+    private byte sequenceId; // 1 byte
+    private ByteBuf payload;
 
     public Packet(int payloadLength, byte sequenceId, ByteBuf payload) {
         this.payloadLength = payloadLength;

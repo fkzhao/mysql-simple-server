@@ -1,14 +1,19 @@
 package cc.fastsoft;
 
+import cc.fastsoft.hander.AuthHandler;
+import cc.fastsoft.hander.CommandHandler;
+import cc.fastsoft.hander.HandshakeHandler;
+import cc.fastsoft.protocol.Packet;
 import cc.fastsoft.protocol.codec.PacketDecoder;
 import cc.fastsoft.protocol.codec.PacketEncoder;
-import cc.fastsoft.hander.ServerHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
@@ -45,6 +50,52 @@ public class MysqlMockServer {
             logger.info("Shutting down MySQL Mock Server");
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+        }
+    }
+
+    //
+    static class ServerHandler extends SimpleChannelInboundHandler<Packet> {
+        private static final Logger logger = LoggerFactory.getLogger(ServerHandler.class);
+        private byte sequenceId = 0;
+        private boolean authenticated = false;
+
+        private final HandshakeHandler handshakeHandler;
+        private final AuthHandler authHandler;
+        private final CommandHandler commandHandler;
+
+        public ServerHandler() {
+            this.handshakeHandler = new HandshakeHandler();
+            this.authHandler = new AuthHandler("123456", handshakeHandler.getAuthPluginData());
+            this.commandHandler = new CommandHandler();
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            handshakeHandler.sendHandshake(ctx);
+        }
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, Packet packet) {
+            sequenceId = (byte) (packet.getSequenceId() + 1); // Response seq = request seq + 1
+
+            if (!authenticated) {
+                AuthHandler.AuthResult result = authHandler.handleAuth(ctx, packet.getPayload(), sequenceId);
+                authenticated = result.isAuthenticated();
+            } else {
+                commandHandler.handleCommand(ctx, packet.getPayload(), sequenceId);
+            }
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            if (cause instanceof java.net.SocketException &&
+                    cause.getMessage() != null &&
+                    cause.getMessage().contains("Connection reset")) {
+                logger.debug("Client disconnected: {}", ctx.channel().remoteAddress());
+            } else {
+                logger.error("Exception in channel: {}", ctx.channel().remoteAddress(), cause);
+            }
+            ctx.close();
         }
     }
 }

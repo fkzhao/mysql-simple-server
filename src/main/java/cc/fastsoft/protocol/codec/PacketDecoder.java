@@ -10,21 +10,28 @@ import java.util.List;
 public class PacketDecoder extends ByteToMessageDecoder {
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf in, List<Object> out) throws Exception {
-        if (in.readableBytes() < 4) return;
 
-        in.markReaderIndex(); // 标记读取位置
+        // Ensure there are at least 4 bytes to read the header
+        if (in.readableBytes() < 4) {
+            throw new Exception("packet length less than 4 bytes");
+        }
 
-        // MySQL 协议使用小端序读取 3 字节长度
+        // Mark the current reader index
+        in.markReaderIndex();
+
+        // MySQL protocol uses little-endian for packet length (3 bytes)
         int payloadLength = in.readByte() & 0xFF |
                            (in.readByte() & 0xFF) << 8 |
                            (in.readByte() & 0xFF) << 16;
         byte sequenceId = in.readByte();
 
+        // Check if the full payload is available
         if (in.readableBytes() < payloadLength) {
-            in.resetReaderIndex(); // 数据不够，重置读取位置
+            in.resetReaderIndex(); // if not enough data, reset reader index
             return;
         }
 
+        // Read the payload
         ByteBuf payload = in.readSlice(payloadLength);
         out.add(new Packet(payloadLength, sequenceId, payload.retainedDuplicate()));
     }
