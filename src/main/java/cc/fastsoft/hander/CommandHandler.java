@@ -21,7 +21,7 @@ public class CommandHandler {
     /**
      * Handle MySQL command packet
      */
-    public void handleCommand(ChannelHandlerContext ctx, ByteBuf payload, byte sequenceId) {
+    public void handleCommand(ChannelHandlerContext ctx, ByteBuf payload, byte sequenceId, int clientCapabilities) {
         byte command = payload.readByte();
 
         switch (command) {
@@ -35,7 +35,7 @@ public class CommandHandler {
                 // Clean SQL: remove comments, extract real SQL
                 sql = cleanSql(sql);
                 logger.info("Executing SQL from {}: {}", ctx.channel().remoteAddress(), sql);
-                queryHandler.handleQuery(ctx, sql, sequenceId);
+                queryHandler.handleQuery(ctx, sql, sequenceId, clientCapabilities);
                 break;
 
             case 0x0E: // COM_PING

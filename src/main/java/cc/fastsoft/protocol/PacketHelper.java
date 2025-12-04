@@ -3,6 +3,8 @@ package cc.fastsoft.protocol;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
@@ -10,6 +12,8 @@ import java.nio.charset.StandardCharsets;
  * Helper class for MySQL packet operations
  */
 public class PacketHelper {
+
+    private static Logger logger = LoggerFactory.getLogger(PacketHelper.class);
 
     /**
      * Send a MySQL packet
@@ -30,6 +34,32 @@ public class PacketHelper {
         ok.writeShortLE(0); // warnings
         writeLengthEncodedString(ok, message); // info
         sendPacket(ctx, ok, sequenceId);
+    }
+
+    /**
+     * Send OK packet for result set end (CLIENT_DEPRECATE_EOF mode)
+     */
+    public static void sendResultSetOkPacket(ChannelHandlerContext ctx, byte sequenceId) {
+        ByteBuf ok = Unpooled.buffer();
+        ok.writeByte(0xFE); // OK header for result set end
+        writeLengthEncodedInteger(ok, 0); // affected_rows
+        writeLengthEncodedInteger(ok, 0); // last_insert_id
+        ok.writeShortLE(0x0002); // status_flags (SERVER_STATUS_AUTOCOMMIT)
+        ok.writeShortLE(0); // warnings
+        sendPacket(ctx, ok, sequenceId);
+    }
+
+    /**
+     * Send result set EOF packet
+     */
+    public static void sendEofPacket(ChannelHandlerContext ctx, byte sequenceId) {
+        ByteBuf eof = Unpooled.buffer();
+        eof.writeByte(0xFE); // 0xFE = EOF packet marker
+        eof.writeShortLE(0); // warnings
+        eof.writeShortLE(0); // status_flags
+        PacketHelper.sendPacket(ctx, eof, sequenceId);
+        logger.info("Sent EOF packet for seq={}", sequenceId);
+
     }
 
     /**

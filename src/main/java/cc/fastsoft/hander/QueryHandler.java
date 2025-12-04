@@ -16,20 +16,20 @@ public class QueryHandler {
     /**
      * Handle SQL query
      */
-    public void handleQuery(ChannelHandlerContext ctx, String sql, byte sequenceId) {
+    public void handleQuery(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
         String sqlUpper = sql.trim().toUpperCase();
 
         try {
-            if (sql.trim().equalsIgnoreCase("SELECT 1")) {
-                sendSimpleResultSet(ctx, new String[]{"value"}, new String[][]{{"1"}}, sequenceId);
+            if (sqlUpper.startsWith("SELECT 1")) {
+                sendResultSet(ctx, new String[]{"value"}, new String[][]{{"1"}}, sequenceId, clientCapabilities);
             } else if (sqlUpper.equals("SHOW DATABASES") || sqlUpper.equals("SHOW SCHEMAS")) {
-                handleShowDatabases(ctx, sequenceId);
+                handleShowDatabases(ctx, sequenceId, clientCapabilities);
             } else if (sqlUpper.startsWith("SELECT @@") || sqlUpper.startsWith("SELECT DATABASE()")) {
-                handleSystemVariableQuery(ctx, sql, sequenceId);
+                handleSystemVariableQuery(ctx, sql, sequenceId, clientCapabilities);
             } else if (sqlUpper.startsWith("SHOW ENGINES") || sqlUpper.startsWith("SHOW CHARSET") ||
                        sqlUpper.startsWith("SHOW COLLATION") || sqlUpper.startsWith("SHOW PLUGINS") ||
                        sqlUpper.startsWith("SHOW VARIABLES")) {
-                sendEmptyResultSet(ctx, sql, sequenceId);
+                sendEmptyResultSet(ctx, sql, sequenceId, clientCapabilities);
             } else if (sqlUpper.startsWith("SET ")) {
                 PacketHelper.sendOkPacket(ctx, "OK", sequenceId);
             } else {
@@ -44,25 +44,25 @@ public class QueryHandler {
     /**
      * Handle SHOW DATABASES command
      */
-    private void handleShowDatabases(ChannelHandlerContext ctx, byte sequenceId) {
+    private void handleShowDatabases(ChannelHandlerContext ctx, byte sequenceId, int clientCapabilities) {
         String[] databases = {"information_schema", "mysql", "performance_schema", "sys", "test_db", "my_database"};
         String[][] rows = new String[databases.length][1];
         for (int i = 0; i < databases.length; i++) {
             rows[i][0] = databases[i];
         }
-        sendSimpleResultSet(ctx, new String[]{"Database"}, rows, sequenceId);
+        sendResultSet(ctx, new String[]{"Database"}, rows, sequenceId, clientCapabilities);
     }
 
     /**
      * Handle system variable queries
      */
-    private void handleSystemVariableQuery(ChannelHandlerContext ctx, String sql, byte sequenceId) {
+    private void handleSystemVariableQuery(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
         String sqlUpper = sql.toUpperCase();
 
         if (sqlUpper.contains("DATABASE()")) {
-            sendSimpleResultSet(ctx, new String[]{"DATABASE()"}, new String[][]{{"test_db"}}, sequenceId);
+            sendResultSet(ctx, new String[]{"DATABASE()"}, new String[][]{{"test_db"}}, sequenceId, clientCapabilities);
         } else if (sqlUpper.contains("@@VERSION_COMMENT")) {
-            sendSimpleResultSet(ctx, new String[]{"@@version_comment"}, new String[][]{{"MySQL Mock Server"}}, sequenceId);
+            sendResultSet(ctx, new String[]{"@@version_comment"}, new String[][]{{"MySQL Mock Server"}}, sequenceId, clientCapabilities);
         } else {
             // Return multi-column system variable query result
             String[] columns = extractColumnNames(sql);
@@ -70,7 +70,7 @@ public class QueryHandler {
             for (int i = 0; i < columns.length; i++) {
                 data[0][i] = "mock_value";
             }
-            sendSimpleResultSet(ctx, columns, data, sequenceId);
+            sendResultSet(ctx, columns, data, sequenceId, clientCapabilities);
         }
     }
 
@@ -95,7 +95,9 @@ public class QueryHandler {
     /**
      * Send simple result set
      */
-    private void sendSimpleResultSet(ChannelHandlerContext ctx, String[] columnNames, String[][] rows, byte sequenceId) {
+    private void sendResultSet(ChannelHandlerContext ctx, String[] columnNames, String[][] rows, byte sequenceId, int clientCapabilities) {
+        boolean deprecateEof = (clientCapabilities & 0x01000000) != 0; // CLIENT_DEPRECATE_EOF
+
         // Column Count
         ByteBuf columnCount = Unpooled.buffer().writeByte(columnNames.length);
         PacketHelper.sendPacket(ctx, columnCount, sequenceId++);
@@ -117,6 +119,12 @@ public class QueryHandler {
             colDef.writeByte(0); // decimals
             colDef.writeBytes(new byte[2]); // filler
             PacketHelper.sendPacket(ctx, colDef, sequenceId++);
+            logger.debug("Sent column definition for '{}', seq={}", colName, sequenceId - 1);
+        }
+
+        // EOF after column definitions (only if CLIENT_DEPRECATE_EOF is NOT set)
+        if (!deprecateEof) {
+            PacketHelper.sendEofPacket(ctx, sequenceId++);
         }
 
         // Row Data
@@ -128,40 +136,96 @@ public class QueryHandler {
             PacketHelper.sendPacket(ctx, rowBuf, sequenceId++);
         }
 
-        // Send final OK packet
-        sendResultSetOkPacket(ctx, rows.length, sequenceId);
+        // Final packet: OK if CLIENT_DEPRECATE_EOF, otherwise EOF
+        if (deprecateEof) {
+            PacketHelper.sendResultSetOkPacket(ctx, sequenceId);
+        } else {
+            PacketHelper.sendEofPacket(ctx, sequenceId);
+        }
     }
 
     /**
      * Send empty result set
      */
-    private void sendEmptyResultSet(ChannelHandlerContext ctx, String sql, byte sequenceId) {
+    private void sendEmptyResultSet(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
         String sqlUpper = sql.toUpperCase();
 
         if (sqlUpper.startsWith("SHOW ENGINES")) {
-            sendSimpleResultSet(ctx, new String[]{"Engine", "Support", "Comment"}, new String[0][0], sequenceId);
+            sendResultSet(ctx, new String[]{"Engine", "Support", "Comment"}, new String[0][0], sequenceId, clientCapabilities);
         } else if (sqlUpper.startsWith("SHOW CHARSET")) {
-            sendSimpleResultSet(ctx, new String[]{"Charset", "Description"}, new String[0][0], sequenceId);
+            sendResultSet(ctx, new String[]{"Charset", "Description"}, new String[0][0], sequenceId, clientCapabilities);
         } else if (sqlUpper.startsWith("SHOW COLLATION")) {
-            sendSimpleResultSet(ctx, new String[]{"Collation", "Charset"}, new String[0][0], sequenceId);
+            sendResultSet(ctx, new String[]{"Collation", "Charset"}, new String[0][0], sequenceId, clientCapabilities);
         } else if (sqlUpper.startsWith("SHOW PLUGINS")) {
-            sendSimpleResultSet(ctx, new String[]{"Name", "Status"}, new String[0][0], sequenceId);
+            sendResultSet(ctx, new String[]{"Name", "Status"}, new String[0][0], sequenceId, clientCapabilities);
         } else if (sqlUpper.startsWith("SHOW VARIABLES")) {
-            sendSimpleResultSet(ctx, new String[]{"Variable_name", "Value"}, new String[0][0], sequenceId);
+            handleShowVariables(ctx, sql, sequenceId, clientCapabilities);
         } else {
             PacketHelper.sendOkPacket(ctx, "OK", sequenceId);
         }
     }
 
     /**
-     * Send result set OK packet
+     * Handle SHOW VARIABLES command
      */
-    private void sendResultSetOkPacket(ChannelHandlerContext ctx, int rowCount, byte sequenceId) {
-        ByteBuf ok = Unpooled.buffer();
-        ok.writeByte(0xFE); // 0xFE = EOF packet marker
-        ok.writeShortLE(0); // warnings
-        ok.writeShortLE(0x0002); // SERVER_STATUS_AUTOCOMMIT
-        PacketHelper.sendPacket(ctx, ok, sequenceId);
+    private void handleShowVariables(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
+        // Check if it's filtered with LIKE clause
+        String likePattern = null;
+        if (sql.toUpperCase().contains(" LIKE ")) {
+            String[] parts = sql.split("(?i)LIKE");
+            if (parts.length > 1) {
+                likePattern = parts[1].trim().replaceAll("'", "").replaceAll("%", ".*").toLowerCase();
+            }
+        }
+
+        // Common MySQL variables
+        String[][] allVariables = {
+            {"autocommit", "ON"},
+            {"auto_increment_increment", "1"},
+            {"character_set_client", "utf8mb4"},
+            {"character_set_connection", "utf8mb4"},
+            {"character_set_database", "utf8mb4"},
+            {"character_set_results", "utf8mb4"},
+            {"character_set_server", "utf8mb4"},
+            {"collation_connection", "utf8mb4_general_ci"},
+            {"collation_database", "utf8mb4_general_ci"},
+            {"collation_server", "utf8mb4_general_ci"},
+            {"init_connect", ""},
+            {"interactive_timeout", "28800"},
+            {"license", "GPL"},
+            {"lower_case_table_names", "0"},
+            {"max_allowed_packet", "67108864"},
+            {"max_connections", "151"},
+            {"net_write_timeout", "60"},
+            {"performance_schema", "ON"},
+            {"port", "2883"},
+            {"protocol_version", "10"},
+            {"query_cache_size", "0"},
+            {"query_cache_type", "OFF"},
+            {"server_id", "1"},
+            {"sql_mode", "STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"},
+            {"system_time_zone", "UTC"},
+            {"time_zone", "SYSTEM"},
+            {"transaction_isolation", "REPEATABLE-READ"},
+            {"version", "5.7+"},
+            {"version_comment", "MySQL Mock Server"},
+            {"wait_timeout", "28800"}
+        };
+
+        // Filter variables if LIKE pattern exists
+        if (likePattern != null) {
+            java.util.List<String[]> filtered = new java.util.ArrayList<>();
+            final String pattern = likePattern;
+            for (String[] var : allVariables) {
+                if (var[0].toLowerCase().matches(pattern)) {
+                    filtered.add(var);
+                }
+            }
+            String[][] filteredArray = filtered.toArray(new String[0][0]);
+            sendResultSet(ctx, new String[]{"Variable_name", "Value"}, filteredArray, sequenceId, clientCapabilities);
+        } else {
+            sendResultSet(ctx, new String[]{"Variable_name", "Value"}, allVariables, sequenceId, clientCapabilities);
+        }
     }
 }
 

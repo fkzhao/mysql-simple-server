@@ -19,6 +19,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Random;
+
 public class MysqlMockServer {
     private static final Logger logger = LoggerFactory.getLogger(MysqlMockServer.class);
 
@@ -56,16 +58,19 @@ public class MysqlMockServer {
     //
     static class ServerHandler extends SimpleChannelInboundHandler<Packet> {
         private static final Logger logger = LoggerFactory.getLogger(ServerHandler.class);
-        private byte sequenceId = 0;
         private boolean authenticated = false;
+        private int clientCapabilities = 0;
 
         private final HandshakeHandler handshakeHandler;
         private final AuthHandler authHandler;
         private final CommandHandler commandHandler;
 
         public ServerHandler() {
-            this.handshakeHandler = new HandshakeHandler();
-            this.authHandler = new AuthHandler("123456", handshakeHandler.getAuthPluginData());
+            byte[] scramble = new byte[20];
+            Random random = new Random();
+            random.nextBytes(scramble);
+            this.handshakeHandler = new HandshakeHandler(scramble);
+            this.authHandler = new AuthHandler("123456", scramble);
             this.commandHandler = new CommandHandler();
         }
 
@@ -76,13 +81,14 @@ public class MysqlMockServer {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Packet packet) {
-            sequenceId = (byte) (packet.getSequenceId() + 1); // Response seq = request seq + 1
+            byte sequenceId = (byte) (packet.getSequenceId() + 1); // Response seq = request seq + 1
 
             if (!authenticated) {
                 AuthHandler.AuthResult result = authHandler.handleAuth(ctx, packet.getPayload(), sequenceId);
                 authenticated = result.isAuthenticated();
+                clientCapabilities = result.getClientCapabilities();
             } else {
-                commandHandler.handleCommand(ctx, packet.getPayload(), sequenceId);
+                commandHandler.handleCommand(ctx, packet.getPayload(), sequenceId, clientCapabilities);
             }
         }
 

@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Random;
 
 /**
  * Handles MySQL handshake protocol
@@ -16,16 +15,13 @@ import java.util.Random;
 public class HandshakeHandler {
     private static final Logger logger = LoggerFactory.getLogger(HandshakeHandler.class);
 
-    private final byte[] authPluginData;
+    private final byte[] scramble;
 
-    public HandshakeHandler() {
-        this.authPluginData = new byte[20];
-        Random random = new Random();
-        random.nextBytes(authPluginData);
-    }
-
-    public byte[] getAuthPluginData() {
-        return authPluginData;
+    public HandshakeHandler(byte[] scramble) {
+        if (scramble== null || scramble.length != 20) {
+            throw new IllegalArgumentException("Scramble must be 20 bytes");
+        }
+        this.scramble = scramble;
     }
 
     /**
@@ -34,9 +30,9 @@ public class HandshakeHandler {
     public void sendHandshake(ChannelHandlerContext ctx) {
         ByteBuf handshake = Unpooled.buffer();
         handshake.writeByte(10); // protocol version
-        handshake.writeBytes("5.7.36-mock\0".getBytes(StandardCharsets.US_ASCII));
+        handshake.writeBytes("Support 5.7+\0".getBytes(StandardCharsets.US_ASCII));
         handshake.writeIntLE(1); // connection id
-        handshake.writeBytes(authPluginData, 0, 8); // auth_plugin_data_part_1
+        handshake.writeBytes(scramble, 0, 8); // auth_plugin_data_part_1
         handshake.writeByte(0); // filler
         handshake.writeShortLE(0xFFFF); // capability_flags_1
         handshake.writeByte(33); // character_set
@@ -44,7 +40,7 @@ public class HandshakeHandler {
         handshake.writeShortLE(0xFFFF); // capability_flags_2
         handshake.writeByte(21); // auth_plugin_data_len
         handshake.writeBytes(new byte[10]); // reserved
-        handshake.writeBytes(authPluginData, 8, 12); // auth_plugin_data_part_2
+        handshake.writeBytes(scramble, 8, 12); // auth_plugin_data_part_2
         handshake.writeByte(0); // null terminator
         handshake.writeBytes("mysql_native_password\0".getBytes(StandardCharsets.US_ASCII));
 
