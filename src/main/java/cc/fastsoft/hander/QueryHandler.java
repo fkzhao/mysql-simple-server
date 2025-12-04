@@ -1,12 +1,11 @@
 package cc.fastsoft.hander;
 
+import cc.fastsoft.protocol.PacketHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * Handles SQL query execution
@@ -22,7 +21,7 @@ public class QueryHandler {
 
         try {
             if (sql.trim().equalsIgnoreCase("SELECT 1")) {
-                sendSimpleResultSet(ctx, new String[]{"1"}, new String[][]{{"1"}}, sequenceId);
+                sendSimpleResultSet(ctx, new String[]{"value"}, new String[][]{{"1"}}, sequenceId);
             } else if (sqlUpper.equals("SHOW DATABASES") || sqlUpper.equals("SHOW SCHEMAS")) {
                 handleShowDatabases(ctx, sequenceId);
             } else if (sqlUpper.startsWith("SELECT @@") || sqlUpper.startsWith("SELECT DATABASE()")) {

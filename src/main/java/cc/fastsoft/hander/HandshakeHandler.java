@@ -1,6 +1,6 @@
 package cc.fastsoft.hander;
 
-import cc.fastsoft.protocol.Packet;
+import cc.fastsoft.protocol.PacketHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;

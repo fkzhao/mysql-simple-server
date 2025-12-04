@@ -1,5 +1,6 @@
 package cc.fastsoft.hander;
 
+import cc.fastsoft.protocol.PacketHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ public class AuthHandler {
                 if (payload.readableBytes() >= authResponseLen) {
                     payload.readBytes(authResponse);
                 } else {
-                    logger.error("Not enough bytes for auth response: expected {}, got {}",
+                    logger.error("Not enough bytes for auth request: expected {}, got {}",
                             authResponseLen, payload.readableBytes());
                 }
             } else if ((clientCapabilities & 0x00008000) != 0) {

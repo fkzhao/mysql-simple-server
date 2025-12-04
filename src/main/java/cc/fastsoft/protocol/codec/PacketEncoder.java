@@ -22,7 +22,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet> {
         out.writeByte(msg.getSequenceId());
         out.writeBytes(msg.getPayload());
 
-        logger.info("Encoded packet: length={} seq={}", payloadLength, msg.getSequenceId());
+        logger.info("[OUT]Encoded packet: length={} seq={}", payloadLength, msg.getSequenceId());
 
     }
 }

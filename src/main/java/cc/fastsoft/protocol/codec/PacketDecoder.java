@@ -4,10 +4,14 @@ import cc.fastsoft.protocol.Packet;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class PacketDecoder extends ByteToMessageDecoder {
+    Logger logger = LoggerFactory.getLogger(PacketDecoder.class);
+
     @Override
     protected void decode(ChannelHandlerContext channelHandlerContext, ByteBuf in, List<Object> out) throws Exception {
 
@@ -34,5 +38,7 @@ public class PacketDecoder extends ByteToMessageDecoder {
         // Read the payload
         ByteBuf payload = in.readSlice(payloadLength);
         out.add(new Packet(payloadLength, sequenceId, payload.retainedDuplicate()));
+
+        logger.info("[IN]Decoded packet: length={} seq={}", payloadLength, sequenceId);
     }
 }
