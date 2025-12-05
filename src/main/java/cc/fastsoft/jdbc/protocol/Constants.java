@@ -1,4 +1,4 @@
-package cc.fastsoft.protocol;
+package cc.fastsoft.jdbc.protocol;
 
 public class Constants {
     public static final int CLIENT_LONG_PASSWORD                    = 1;
@@ -15,7 +15,7 @@ public class Constants {
     public static final int CLIENT_MULTI_RESULTS                    = 1 << 17;
     public static final int CLIENT_PS_MULTI_RESULTS                 = 1 << 18;
     public static final int CLIENT_PLUGIN_AUTH                      = 1 << 19;
-    public static final int CLIENT_CONNECT_ATTRS                  = 1 << 20;
+    public static final int CLIENT_CONNECT_ATTRS                    = 1 << 20;
     public static final int CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA   = 1 << 21;
     public static final int CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS     = 1 << 22;
     public static final int CLIENT_SESSION_TRACK                    = 1 << 23;

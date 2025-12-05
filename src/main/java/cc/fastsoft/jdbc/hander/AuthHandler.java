@@ -1,7 +1,8 @@
-package cc.fastsoft.hander;
+package cc.fastsoft.jdbc.hander;
 
-import cc.fastsoft.protocol.Constants;
-import cc.fastsoft.protocol.PacketHelper;
+import cc.fastsoft.jdbc.protocol.Constants;
+import cc.fastsoft.jdbc.protocol.PacketHelper;
+import cc.fastsoft.utils.StringUtils;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ public class AuthHandler {
     public AuthHandler(String password, byte[] scramble) {
         this.password = password;
         this.scramble = scramble;
+        logger.info("scramble: {}", StringUtils.bytesToHex(scramble));
     }
 
     /**
@@ -107,7 +109,7 @@ public class AuthHandler {
 
         // Print clientAuthData for debugging
         if (clientAuthData.length > 0) {
-            logger.info("Client auth data (hex): {}", bytesToHex(clientAuthData));
+            logger.info("Client auth data (hex): {}", StringUtils.bytesToHex(clientAuthData));
         } else {
             logger.info("Client auth data is empty (length=0)");
         }
@@ -178,19 +180,19 @@ public class AuthHandler {
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
             byte[] step1 = sha1.digest(password.getBytes(StandardCharsets.UTF_8));
-            logger.debug("Step1 (SHA1(password)): {}", bytesToHex(step1));
+            logger.debug("Step1 (SHA1(password)): {}", StringUtils.bytesToHex(step1));
 
             byte[] step2 = sha1.digest(step1);
-            logger.debug("Step2 (SHA1(SHA1(password))): {}", bytesToHex(step2));
+            logger.debug("Step2 (SHA1(SHA1(password))): {}", StringUtils.bytesToHex(step2));
 
             sha1.update(nonce);
             sha1.update(step2);
             byte[] expected = sha1.digest();
-            logger.debug("Step3 (SHA1(nonce + step2)): {}", bytesToHex(expected));
+            logger.debug("Step3 (SHA1(nonce + step2)): {}", StringUtils.bytesToHex(expected));
 
             for (int i = 0; i < 20; i++) expected[i] ^= step1[i];
-            logger.debug("Expected result (step3 XOR step1): {}", bytesToHex(expected));
-            logger.debug("Client response: {}", bytesToHex(clientResponse));
+            logger.debug("Expected result (step3 XOR step1): {}", StringUtils.bytesToHex(expected));
+            logger.debug("Client response: {}", StringUtils.bytesToHex(clientResponse));
 
             boolean result = MessageDigest.isEqual(expected, clientResponse);
             logger.debug("Verification result: {}", result);
@@ -199,17 +201,6 @@ public class AuthHandler {
             logger.error("Error during native password verification", e);
             return false;
         }
-    }
-
-    /**
-     * Convert byte array to hex string for debugging
-     */
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 
     /**

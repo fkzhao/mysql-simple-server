@@ -1,6 +1,6 @@
-package cc.fastsoft.protocol.codec;
+package cc.fastsoft.jdbc.protocol.codec;
 
-import cc.fastsoft.protocol.Packet;
+import cc.fastsoft.jdbc.protocol.Packet;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
