@@ -40,7 +40,7 @@ public class HandshakeHandler {
         buf.writeByte(10);
 
         // 2. server version (NULL-terminated)
-        buf.writeBytes("5.7.0-fastsoft\0".getBytes(StandardCharsets.US_ASCII));
+        buf.writeBytes("5.7.0-mock\0".getBytes(StandardCharsets.US_ASCII));
 
         // 3. connection id (should be unique per connection in real implementation)
         buf.writeIntLE(connectCtx.getConnectionId());

@@ -1,14 +1,24 @@
 package cc.fastsoft.example;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
 public class Example {
+    static Logger logger = LoggerFactory.getLogger(Example.class);
+
     public static void main(String[] args) {
+        logger.info("Starting MySQL JDBC Example...");
         // MySQL connection parameters
-        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=true";
+        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=true&defaultAuthenticationPlugin=mysql_native_password&logger=com.mysql.cj.log.Slf4JLogger&traceProtocol=true";
+//        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false"
+//                + "&allowPublicKeyRetrieval=true"
+//                + "&authenticationPlugins=com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin"
+//                + "&defaultAuthenticationPlugin=mysql_native_password";
         String user = "root";
         String password = "123456";
 

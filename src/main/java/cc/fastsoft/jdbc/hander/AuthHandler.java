@@ -122,7 +122,7 @@ public class AuthHandler {
         }
 
         // Read auth plugin name (if CLIENT_PLUGIN_AUTH flag is set)
-        String authPluginName = Constants.MYSQL_NATIVE_PASSWORD;
+        String authPluginName = "";
         if ((clientCapabilities & Constants.CLIENT_PLUGIN_AUTH) != 0 && payload.readableBytes() > 0) {
             authPluginName = PacketHelper.readNullTerminatedString(payload);
             logger.debug("Auth plugin: '{}', remaining bytes: {}", authPluginName, payload.readableBytes());
@@ -130,17 +130,12 @@ public class AuthHandler {
 
         // Authentication logic (mysql_native_password)
         boolean authOk = false;
-        switch (authPluginName) {
-            case Constants.MYSQL_NATIVE_PASSWORD:
-                authOk = nativeVerify(password, scramble, clientAuthData);
-                break;
-            case Constants.CACHING_SHA2_PASSWORD:
-                authOk = cachingSha2Verify(password, scramble, clientAuthData);
-                break;
-            default:
-                logger.warn("Unsupported auth plugin '{}' for user '{}'", authPluginName, username);
-                PacketHelper.sendErrPacket(ctx, "Unsupported auth plugin '" + authPluginName + " for user '"+ username +"'", sequenceId);
-                return new AuthResult(false, clientCapabilities, username, database, authPluginName);
+        if (authPluginName.equals(Constants.MYSQL_NATIVE_PASSWORD)) {
+            authOk = nativeVerify(password, scramble, clientAuthData);
+        } else {
+            logger.warn("Unsupported auth plugin '{}' for user '{}'", authPluginName, username);
+            PacketHelper.sendErrPacket(ctx, "Unsupported auth plugin '" + authPluginName + " for user '" + username + "'", sequenceId);
+            return new AuthResult(false, clientCapabilities, username, database, authPluginName);
         }
 
         // For debugging: log authentication attempt details
@@ -166,8 +161,8 @@ public class AuthHandler {
     private boolean nativeVerify(String password, byte[] nonce, byte[] clientResponse) {
 
         // Debug input parameters
-        logger.debug("nativeVerify - password: '{}', nonce length: {}, clientResponse length: {}",
-                password, nonce.length, clientResponse.length);
+        logger.debug("nativeVerify - password: '{}', nonce length: {} (hex):{}, clientResponse length: {} (hex): {}",
+                password, nonce.length, StringUtils.bytesToHex(nonce), clientResponse.length, StringUtils.bytesToHex(clientResponse));
 
         // Handle empty password case
         if (password.isEmpty()) {
@@ -199,30 +194,6 @@ public class AuthHandler {
             return result;
         } catch (Exception e) {
             logger.error("Error during native password verification", e);
-            return false;
-        }
-    }
-
-    /**
-     * Calculate caching_sha2_password hash
-     */
-    private boolean cachingSha2Verify(String password, byte[] nonce, byte[] clientResponse) {
-        if (password.isEmpty()) return clientResponse.length == 1 && clientResponse[0] == 0;
-        try {
-            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-            byte[] pwdBytes = password.getBytes(StandardCharsets.UTF_8);
-
-            byte[] stage1 = sha256.digest(pwdBytes);
-            byte[] stage2 = sha256.digest(stage1);
-            sha256.update(stage2);
-            sha256.update(nonce);
-            byte[] stage3 = sha256.digest();
-
-            for (int i = 0; i < stage3.length; i++) {
-                stage3[i] ^= clientResponse[i];
-            }
-            return MessageDigest.isEqual(sha256.digest(stage3), stage1);
-        } catch (Exception e) {
             return false;
         }
     }
