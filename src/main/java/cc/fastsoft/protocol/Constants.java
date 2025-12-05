@@ -20,4 +20,6 @@ public class Constants {
     public static final int CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS     = 1 << 22;
     public static final int CLIENT_SESSION_TRACK                    = 1 << 23;
     public static final int CLIENT_DEPRECATE_EOF                    = 1 << 24;
+    public static final String MYSQL_NATIVE_PASSWORD                = "mysql_native_password";
+    public static final String CACHING_SHA2_PASSWORD                = "caching_sha2_password";
 }

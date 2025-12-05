@@ -68,8 +68,10 @@ public class AuthHandler {
                 // Use length-encoded integer format
                 long authResponseLen = PacketHelper.readLengthEncodedInteger(payload);
                 clientAuthData = new byte[(int) authResponseLen];
-                if (payload.readableBytes() >= authResponseLen) {
+                if (authResponseLen > 0 && payload.readableBytes() >= authResponseLen) {
                     payload.readBytes(clientAuthData);
+                } else if (authResponseLen == 0){
+                    clientAuthData = new byte[0];
                 } else {
                     logger.error("Not enough bytes for auth request: expected {}, got {}",
                             authResponseLen, payload.readableBytes());
@@ -78,8 +80,10 @@ public class AuthHandler {
                 // CLIENT_SECURE_CONNECTION: use single byte length format
                 int authResponseLen = payload.readUnsignedByte();
                 clientAuthData = new byte[authResponseLen];
-                if (payload.readableBytes() >= authResponseLen) {
+                if (authResponseLen > 0 && payload.readableBytes() >= authResponseLen) {
                     payload.readBytes(clientAuthData);
+                } else if (authResponseLen == 0){
+                    clientAuthData = new byte[0];
                 } else {
                     logger.error("Not enough bytes for auth response: expected {}, got {}",
                             authResponseLen, payload.readableBytes());
@@ -87,10 +91,13 @@ public class AuthHandler {
             } else {
                 // Old format: null-terminated string
                 int len = payload.bytesBefore((byte) 0);
-                if (len >= 0) {
+                if (len >= 0 && payload.readableBytes() >= len + 1) {
                     clientAuthData = new byte[len];
                     payload.readBytes(clientAuthData);
                     payload.readByte(); // skip null
+                } else if (len == -1) {
+                    clientAuthData = new byte[payload.readableBytes()];
+                    payload.readBytes(clientAuthData);
                 }
             }
         }
@@ -101,7 +108,6 @@ public class AuthHandler {
         // Print clientAuthData for debugging
         if (clientAuthData.length > 0) {
             logger.info("Client auth data (hex): {}", bytesToHex(clientAuthData));
-            logger.debug("Client auth data (bytes): {}", java.util.Arrays.toString(clientAuthData));
         } else {
             logger.info("Client auth data is empty (length=0)");
         }
@@ -114,7 +120,7 @@ public class AuthHandler {
         }
 
         // Read auth plugin name (if CLIENT_PLUGIN_AUTH flag is set)
-        String authPluginName = "";
+        String authPluginName = Constants.MYSQL_NATIVE_PASSWORD;
         if ((clientCapabilities & Constants.CLIENT_PLUGIN_AUTH) != 0 && payload.readableBytes() > 0) {
             authPluginName = PacketHelper.readNullTerminatedString(payload);
             logger.debug("Auth plugin: '{}', remaining bytes: {}", authPluginName, payload.readableBytes());
@@ -122,12 +128,22 @@ public class AuthHandler {
 
         // Authentication logic (mysql_native_password)
         boolean authOk = false;
-        if ("caching_sha2_password".equals(authPluginName)) {
-            authOk = cachingSha2Verify(password, scramble, clientAuthData);
-        } else {
-            // Default to mysql_native_password
-            authOk = nativeVerify(password, scramble, clientAuthData);
+        switch (authPluginName) {
+            case Constants.MYSQL_NATIVE_PASSWORD:
+                authOk = nativeVerify(password, scramble, clientAuthData);
+                break;
+            case Constants.CACHING_SHA2_PASSWORD:
+                authOk = cachingSha2Verify(password, scramble, clientAuthData);
+                break;
+            default:
+                logger.warn("Unsupported auth plugin '{}' for user '{}'", authPluginName, username);
+                PacketHelper.sendErrPacket(ctx, "Unsupported auth plugin '" + authPluginName + " for user '"+ username +"'", sequenceId);
+                return new AuthResult(false, clientCapabilities, username, database, authPluginName);
         }
+
+        // For debugging: log authentication attempt details
+        logger.info("Authentication attempt for user '{}': authOk={}, plugin={}",
+                username, authOk, authPluginName);
 
         // Send response based on authentication result
         if (authOk) {
