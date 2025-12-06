@@ -1,27 +1,21 @@
 package cc.fastsoft;
 
 import cc.fastsoft.jdbc.ServerHandler;
-import cc.fastsoft.jdbc.hander.AuthHandler;
-import cc.fastsoft.jdbc.hander.CommandHandler;
-import cc.fastsoft.jdbc.hander.HandshakeHandler;
-import cc.fastsoft.jdbc.protocol.Packet;
 import cc.fastsoft.jdbc.protocol.codec.PacketDecoder;
 import cc.fastsoft.jdbc.protocol.codec.PacketEncoder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MysqlMockServer {
-    private static final Logger logger = LoggerFactory.getLogger(MysqlMockServer.class);
+public class MysqlServer {
+    private static final Logger logger = LoggerFactory.getLogger(MysqlServer.class);
 
     public static void main(String[] args) {
         System.setProperty("io.netty.channel.AbstractChannel.connectionReset", "false");

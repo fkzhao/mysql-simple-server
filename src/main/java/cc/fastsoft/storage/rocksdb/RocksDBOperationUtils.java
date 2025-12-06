@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
-import static  cc.fastsoft.utils.Preconditions.checkNotNull;
-import static  cc.fastsoft.utils.Preconditions.checkState;
+import static cc.fastsoft.utils.Preconditions.checkNotNull;
+import static cc.fastsoft.utils.Preconditions.checkState;
 
 /**
  * Utils for RocksDB Operations.
@@ -53,19 +53,17 @@ public class RocksDBOperationUtils {
         RocksDB dbRef;
         try {
             if (isReadOnly) {
-                dbRef =
-                        RocksDB.openReadOnly(
-                                checkNotNull(dbOptions),
-                                checkNotNull(path),
-                                columnFamilyDescriptors,
-                                columnFamilyHandles);
+                dbRef = RocksDB.openReadOnly(
+                        checkNotNull(dbOptions),
+                        checkNotNull(path),
+                        columnFamilyDescriptors,
+                        columnFamilyHandles);
             } else {
-                dbRef =
-                        RocksDB.open(
-                                checkNotNull(dbOptions),
-                                checkNotNull(path),
-                                columnFamilyDescriptors,
-                                columnFamilyHandles);
+                dbRef = RocksDB.open(
+                        checkNotNull(dbOptions),
+                        checkNotNull(path),
+                        columnFamilyDescriptors,
+                        columnFamilyHandles);
             }
         } catch (RocksDBException e) {
             columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));

@@ -72,12 +72,12 @@ A lightweight, high-performance MySQL protocol mock server implemented with Nett
 
 3. **Run the server**
    ```bash
-   mvn exec:java -Dexec.mainClass="cc.fastsoft.MysqlMockServer"
+   mvn exec:java -Dexec.mainClass="cc.fastsoft.MysqlServer"
    ```
 
 The server will start on port **2883** and you'll see:
 ```
-2025-12-05 10:00:00.123 [main] INFO cc.fastsoft.MysqlMockServer - MySQL Mock Server started on port 2883
+2025-12-05 10:00:00.123 [main] INFO cc.fastsoft.MysqlServer - MySQL Mock Server started on port 2883
 ```
 
 ### Connecting to the Server
