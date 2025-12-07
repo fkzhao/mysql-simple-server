@@ -142,5 +142,53 @@ public class PacketHelper {
             return 0; // NULL value (0xFB)
         }
     }
+
+    /**
+     * Read length-encoded string
+     */
+    public static String readLengthEncodedString(ByteBuf buf) {
+        long length = readLengthEncodedInteger(buf);
+        if (length == 0 || !buf.isReadable((int) length)) {
+            return "";
+        }
+        byte[] bytes = new byte[(int) length];
+        buf.readBytes(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Get the byte length of a length-encoded integer
+     */
+    public static int getLengthEncodedIntegerLength(long value) {
+        if (value < 251) {
+            return 1;
+        } else if (value <= 0xFFFF) {
+            return 3; // 0xFC + 2 bytes
+        } else if (value <= 0xFFFFFF) {
+            return 4; // 0xFD + 3 bytes
+        } else {
+            return 9; // 0xFE + 8 bytes
+        }
+    }
+
+    /**
+     * Get the byte length of a length-encoded string
+     */
+    public static int getLengthEncodedStringLength(String str) {
+        if (str == null || str.isEmpty()) {
+            return 1; // Just the length byte (0)
+        }
+        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        return getLengthEncodedIntegerLength(bytes.length) + bytes.length;
+    }
+
+    /**
+     * Send a packet using MysqlPacket object
+     */
+    public static void sendMysqlPacket(ChannelHandlerContext ctx, MysqlPacket packet) {
+        ByteBuf payload = Unpooled.buffer();
+        packet.write(payload);
+        sendPacket(ctx, payload, packet.getSequenceId());
+    }
 }
 

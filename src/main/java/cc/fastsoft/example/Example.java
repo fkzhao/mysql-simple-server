@@ -14,11 +14,7 @@ public class Example {
     public static void main(String[] args) {
         logger.info("Starting MySQL JDBC Example...");
         // MySQL connection parameters
-        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=true&defaultAuthenticationPlugin=mysql_native_password&logger=com.mysql.cj.log.Slf4JLogger&traceProtocol=true";
-//        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false"
-//                + "&allowPublicKeyRetrieval=true"
-//                + "&authenticationPlugins=com.mysql.cj.protocol.a.authentication.MysqlNativePasswordPlugin"
-//                + "&defaultAuthenticationPlugin=mysql_native_password";
+        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=true&defaultAuthenticationPlugin=mysql_native_password";
         String user = "root";
         String password = "123456";
 

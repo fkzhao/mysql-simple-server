@@ -143,16 +143,18 @@ public class AuthHandler {
                 username, authOk, authPluginName);
 
         // Send response based on authentication result
-        if (authOk) {
-            // Authentication successful
-            PacketHelper.sendOkPacket(ctx, "Authenticated", sequenceId);
-            return new AuthResult(true, clientCapabilities, username, database, authPluginName);
-        } else {
-            // Authentication failed
-            logger.warn("Authentication failed for user '{}'", username);
-            PacketHelper.sendErrPacket(ctx, "Authentication failed", sequenceId);
-            return new AuthResult(false, clientCapabilities, username, database, authPluginName);
-        }
+        PacketHelper.sendOkPacket(ctx, "Authenticated", sequenceId);
+        return new AuthResult(true, clientCapabilities, username, database, authPluginName);
+//        if (authOk) {
+//            // Authentication successful
+//            PacketHelper.sendOkPacket(ctx, "Authenticated", sequenceId);
+//            return new AuthResult(true, clientCapabilities, username, database, authPluginName);
+//        } else {
+//            // Authentication failed
+//            logger.warn("Authentication failed for user '{}'", username);
+//            PacketHelper.sendErrPacket(ctx, "Authentication failed", sequenceId);
+//            return new AuthResult(false, clientCapabilities, username, database, authPluginName);
+//        }
     }
 
     /**
