@@ -1,41 +1,138 @@
-# MySQL Mock Server
+# MySQL Simple Server
 
-A lightweight, high-performance MySQL protocol mock server implemented with Netty. Designed for testing, development, and integration scenarios where a full MySQL database is not required.
+A lightweight, high-performance MySQL protocol server with embedded database engine. Built with Netty for network handling and RocksDB for data persistence. Perfect for testing, development, and integration scenarios.
 
 ## ✨ Features
 
-- ✅ **Full MySQL Protocol Support** - Complete handshake and authentication implementation
+### Network & Protocol
+- ✅ **Full MySQL Protocol Implementation** - Complete handshake, authentication, and command processing
 - ✅ **Multiple Authentication Formats** - Supports all mysql_native_password wire formats
   - CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
   - CLIENT_SECURE_CONNECTION (new protocol with 1-byte length)
   - Legacy protocol (null-terminated)
 - ✅ **Real-time Connection Monitoring** - Thread-safe tracking of active client connections
-- ✅ **Basic SQL Command Support** - Common queries and management commands
 - ✅ **Client Compatibility** - Works with DBeaver, MySQL CLI, JDBC drivers, and other MySQL clients
 - ✅ **High Performance** - Built on Netty's asynchronous I/O architecture
+
+### Database Engine
+- ✅ **Embedded Database** - RocksDB-backed storage engine with ACID properties
+- ✅ **Multi-Database Support** - Create, use, and manage multiple databases
+- ✅ **Table Management** - Create tables with schema definitions and primary keys
+- ✅ **Full CRUD Operations** - INSERT, SELECT, UPDATE, DELETE with SQL syntax
+- ✅ **SQL Parser** - JSQLParser-based SQL statement parsing and execution
+- ✅ **WHERE Clause Support** - Filter data with equality conditions
+- ✅ **Column Aliasing** - Support for AS clause in SELECT statements
+- ✅ **LIMIT Support** - Restrict result set size
+- ✅ **Data Persistence** - All data persists across server restarts
+
+### Development & Debugging
 - ✅ **Comprehensive Logging** - Detailed debug logging with Logback framework
-- ✅ **Configurable** - Easy to customize port, password, and mock data
+- ✅ **Packet-level Debugging** - Log all MySQL protocol packets (in/out)
+- ✅ **Unit Tests** - Comprehensive test coverage for SQL operations
+- ✅ **Example Code** - Multiple working examples included
 
 ## 📋 Supported SQL Commands
 
-### Query Commands
-- **`SELECT 1`** - Simple query test
-- **`SELECT @@variable_name`** - System variable queries (version, version_comment, etc.)
-- **`SELECT DATABASE()`** - Current database query
-- **`SHOW DATABASES` / `SHOW SCHEMAS`** - Display mock database list
-- **`SHOW ENGINES`** - Show storage engines (returns empty result set)
-- **`SHOW CHARSET`** - Show character sets (returns empty result set)
-- **`SHOW COLLATION`** - Show collations (returns empty result set)
-- **`SHOW PLUGINS`** - Show plugins (returns empty result set)
-- **`SHOW VARIABLES`** - Show system variables (returns empty result set)
+### Data Manipulation Language (DML)
 
-### Management Commands
-- **`SET ...`** - SET commands (automatically returns OK packet)
-- **`USE database_name`** - Switch database (returns OK packet)
-- **`COM_PING`** - Connection heartbeat test
-- **`COM_QUIT`** - Graceful connection termination
+#### SELECT
+```sql
+-- Select all columns
+SELECT * FROM users
 
-> **Note:** This is a mock server that returns predefined responses. It does not perform actual SQL execution or data storage.
+-- Select specific columns
+SELECT id, name FROM users
+
+-- Column aliasing
+SELECT id AS user_id, name AS user_name FROM users
+
+-- WHERE clause (equality)
+SELECT * FROM users WHERE id = 1
+
+-- LIMIT clause
+SELECT * FROM users LIMIT 10
+```
+
+#### INSERT
+```sql
+-- Insert with explicit columns
+INSERT INTO users (id, name, age) VALUES (1, 'Alice', 30)
+
+-- Insert all columns
+INSERT INTO users VALUES (2, 'Bob', 25)
+```
+
+#### UPDATE
+```sql
+-- Update with WHERE clause
+UPDATE users SET age = 31 WHERE id = 1
+
+-- Update multiple columns
+UPDATE users SET name = 'John', age = 35 WHERE id = 2
+
+-- Update all rows (no WHERE)
+UPDATE users SET active = true
+```
+
+#### DELETE
+```sql
+-- Delete with WHERE clause
+DELETE FROM users WHERE id = 1
+
+-- Delete all rows
+DELETE FROM users
+```
+
+### Data Definition Language (DDL)
+
+#### Database Operations
+```sql
+-- Create database
+CREATE DATABASE mydb
+
+-- Use database
+USE mydb
+
+-- Show databases
+SHOW DATABASES
+
+-- Drop database
+DROP DATABASE mydb
+```
+
+#### Table Operations
+```sql
+-- Create table (via DatabaseEngine API)
+engine.createTable("users", columns, primaryKeyColumns)
+
+-- Show tables (via DatabaseEngine API)
+engine.getMetadataManager().listTables()
+```
+
+### System Commands
+```sql
+-- System variable queries
+SELECT @@version
+SELECT @@version_comment
+SELECT DATABASE()
+
+-- Show commands
+SHOW ENGINES
+SHOW CHARSET
+SHOW COLLATION
+SHOW PLUGINS
+SHOW VARIABLES
+SHOW VARIABLES LIKE 'character%'
+
+-- SET commands
+SET autocommit = 1
+SET NAMES utf8mb4
+
+-- Connection management
+COM_PING          -- Heartbeat test
+COM_QUIT          -- Close connection
+COM_INIT_DB       -- Switch database
+```
 
 ## 🛠 Tech Stack
 
@@ -43,10 +140,12 @@ A lightweight, high-performance MySQL protocol mock server implemented with Nett
 |------------|---------|---------|
 | Java | 17 | Programming language |
 | Netty | 4.2.7.Final | High-performance asynchronous network framework |
+| RocksDB | 8.10.0 | Embedded key-value storage engine |
+| JSQLParser | 5.3 | SQL parsing library |
 | Logback | 1.5.21 | Logging framework |
 | SLF4J | 2.0.9 | Logging facade |
 | MySQL Connector/J | 8.4.0 | JDBC driver (for examples) |
-| RocksDB | 10.4.2 | Embedded key-value storage |
+| JUnit Jupiter | 5.10.1 | Testing framework |
 | Maven | 3.6+ | Build and dependency management |
 
 ## 🚀 Quick Start
@@ -61,7 +160,7 @@ A lightweight, high-performance MySQL protocol mock server implemented with Nett
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/mysql-simple-server.git
+   git clone https://github.com/yourusername/mysql-simple-server.git
    cd mysql-simple-server
    ```
 
@@ -75,9 +174,9 @@ A lightweight, high-performance MySQL protocol mock server implemented with Nett
    mvn exec:java -Dexec.mainClass="cc.fastsoft.MysqlServer"
    ```
 
-The server will start on port **2883** and you'll see:
+The server will start on port **2883**:
 ```
-2025-12-05 10:00:00.123 [main] INFO cc.fastsoft.MysqlServer - MySQL Mock Server started on port 2883
+2025-12-08 10:00:00.123 [main] INFO cc.fastsoft.MysqlServer - MySQL Mock Server started on port 2883
 ```
 
 ### Connecting to the Server
@@ -86,6 +185,34 @@ The server will start on port **2883** and you'll see:
 
 ```bash
 mysql -h127.0.0.1 -uroot -P2883 -p123456 --ssl-mode=DISABLED
+```
+
+Example session:
+```sql
+mysql> SHOW DATABASES;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
+| test_db            |
+| my_database        |
++--------------------+
+6 rows in set (0.01 sec)
+
+mysql> USE test_db;
+Database changed
+
+mysql> SELECT * FROM users;
++----+-------+-----+
+| id | name  | age |
++----+-------+-----+
+|  1 | Alice |  30 |
+|  2 | Bob   |  25 |
++----+-------+-----+
+2 rows in set (0.02 sec)
 ```
 
 #### Option 2: DBeaver
@@ -108,21 +235,32 @@ String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=
 String user = "root";
 String password = "123456";
 
-Connection conn = DriverManager.getConnection(url, user, password);
-// Use the connection...
+try (Connection conn = DriverManager.getConnection(url, user, password);
+     Statement stmt = conn.createStatement()) {
+    
+    // Execute query
+    ResultSet rs = stmt.executeQuery("SELECT * FROM users");
+    
+    // Process results
+    while (rs.next()) {
+        System.out.println("ID: " + rs.getInt("id") + 
+                         ", Name: " + rs.getString("name"));
+    }
+}
 ```
 
 See `src/main/java/cc/fastsoft/example/Example.java` for a complete example.
 
 ### Default Configuration
 
-| Parameter | Value |
-|-----------|-------|
-| Host | `127.0.0.1` |
-| Port | `2883` |
-| Username | `root` |
-| Password | `123456` |
-| SSL | Disabled |
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Host | `127.0.0.1` | Server bind address |
+| Port | `2883` | Server port |
+| Username | `root` | Default username |
+| Password | `123456` | Default password |
+| SSL | Disabled | SSL/TLS encryption |
+| Database Path | `rocks.db` | RocksDB data directory |
 
 ## 📁 Project Structure
 
@@ -131,470 +269,463 @@ mysql-simple-server/
 ├── src/
 │   ├── main/
 │   │   ├── java/cc/fastsoft/
-│   │   │   ├── MysqlMockServer.java              # Main server class
-│   │   │   ├── jdbc/
-│   │   │   │   ├── ServerHandler.java            # Connection handler (with connection tracking)
-│   │   │   │   ├── ConnectContext.java           # Connection context (scramble, connection ID)
-│   │   │   │   ├── hander/
-│   │   │   │   │   ├── HandshakeHandler.java     # MySQL handshake phase
-│   │   │   │   │   ├── AuthHandler.java          # Authentication (mysql_native_password)
-│   │   │   │   │   ├── CommandHandler.java       # SQL command routing
-│   │   │   │   │   └── QueryHandler.java         # Query result generation
-│   │   │   │   └── protocol/
-│   │   │   │       ├── Packet.java               # MySQL packet wrapper
-│   │   │   │       ├── PacketHelper.java         # Packet utilities
-│   │   │   │       ├── Constants.java            # Protocol constants
-│   │   │   │       └── codec/
+│   │   │   ├── MysqlServer.java                  # Main server entry point
+│   │   │   ├── db/                               # Database Engine
+│   │   │   │   ├── DatabaseEngine.java           # Main database coordinator
+│   │   │   │   ├── core/                         # Core database modules
+│   │   │   │   │   ├── DatabaseManager.java      # Database-level operations
+│   │   │   │   │   ├── MetadataManager.java      # Schema metadata management
+│   │   │   │   │   ├── StorageManager.java       # Data storage operations
+│   │   │   │   │   ├── KeyEncoder.java           # Key encoding for RocksDB
+│   │   │   │   │   └── RowCodec.java             # Row serialization/deserialization
+│   │   │   │   └── schema/                       # Schema definitions
+│   │   │   │       ├── TableSchema.java          # Table schema model
+│   │   │   │       └── Column.java               # Column definition
+│   │   │   ├── sql/                              # SQL Processing
+│   │   │   │   ├── SqlParse.java                 # SQL parser and executor
+│   │   │   │   └── SqlData.java                  # Query result data structure
+│   │   │   ├── jdbc/                             # MySQL Protocol Implementation
+│   │   │   │   ├── ServerHandler.java            # Connection lifecycle handler
+│   │   │   │   ├── ConnectContext.java           # Per-connection state
+│   │   │   │   ├── hander/                       # Protocol phase handlers
+│   │   │   │   │   ├── HandshakeHandler.java     # Handshake phase
+│   │   │   │   │   ├── AuthHandler.java          # Authentication phase
+│   │   │   │   │   ├── CommandHandler.java       # Command routing
+│   │   │   │   │   └── QueryHandler.java         # Query execution
+│   │   │   │   └── protocol/                     # Protocol utilities
+│   │   │   │       ├── PacketHelper.java         # Packet construction utilities
+│   │   │   │       ├── Constants.java            # MySQL protocol constants
+│   │   │   │       ├── packet/                   # Packet definitions
+│   │   │   │       │   ├── HandshakePacket.java
+│   │   │   │       │   ├── AuthPacket.java
+│   │   │   │       │   ├── OkPacket.java
+│   │   │   │       │   └── ErrPacket.java
+│   │   │   │       └── codec/                    # Packet codecs
 │   │   │   │           ├── PacketDecoder.java    # Decode MySQL packets
 │   │   │   │           └── PacketEncoder.java    # Encode MySQL packets
-│   │   │   ├── storage/
+│   │   │   ├── storage/                          # Storage backends
 │   │   │   │   └── rocksdb/
-│   │   │   │       └── RocksDbHandle.java        # RocksDB storage (optional)
-│   │   │   ├── utils/
-│   │   │   │   ├── IOUtils.java                  # I/O utilities
-│   │   │   │   ├── OperatingSystem.java          # OS detection
-│   │   │   │   └── Preconditions.java            # Validation utilities
-│   │   │   └── example/
+│   │   │   │       └── RocksDbHandle.java        # RocksDB wrapper
+│   │   │   ├── utils/                            # Utilities
+│   │   │   │   ├── IOUtils.java
+│   │   │   │   ├── OperatingSystem.java
+│   │   │   │   ├── Preconditions.java
+│   │   │   │   └── StringUtils.java
+│   │   │   └── example/                          # Examples
 │   │   │       └── Example.java                  # JDBC connection example
 │   │   └── resources/
 │   │       └── logback.xml                       # Logging configuration
 │   └── test/
-│       └── java/
-├── logs/                                         # Log files (generated at runtime)
-├── pom.xml                                       # Maven project configuration
-├── README.md                                     # This file
-└── FIX_SUMMARY.md                                # Authentication fix documentation
+│       └── java/cc/fastsoft/
+│           ├── db/
+│           │   └── DatabasePersistenceTest.java  # Database engine tests
+│           └── sql/
+│               └── SqlParseTest.java             # SQL parser tests
+├── rocks.db/                                      # RocksDB data directory (runtime)
+├── logs/                                          # Log files (runtime)
+├── pom.xml                                        # Maven configuration
+├── README.md                                      # This file
+└── SQL_IMPLEMENTATION.md                          # SQL features documentation
+```
+
+## 🏗 Architecture
+
+### Component Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MySQL Client (DBeaver, CLI, JDBC)        │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ MySQL Protocol (TCP/IP)
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Netty Network Layer                       │
+│  ┌────────────────┬────────────────┬─────────────────────┐  │
+│  │ PacketDecoder  │ ServerHandler  │  PacketEncoder      │  │
+│  └────────────────┴────────────────┴─────────────────────┘  │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 Protocol Handlers                            │
+│  ┌──────────────┬──────────────┬──────────────┬──────────┐  │
+│  │ Handshake    │ Auth         │ Command      │ Query    │  │
+│  │ Handler      │ Handler      │ Handler      │ Handler  │  │
+│  └──────────────┴──────────────┴──────────────┴──────────┘  │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    SQL Processing Layer                      │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              SqlParse (JSQLParser)                  │    │
+│  │  • SELECT  • INSERT  • UPDATE  • DELETE            │    │
+│  └─────────────────────────────────────────────────────┘    │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Database Engine Layer                       │
+│  ┌──────────────┬─────────────────┬────────────────────┐    │
+│  │ Database     │ Metadata        │ Storage            │    │
+│  │ Manager      │ Manager         │ Manager            │    │
+│  └──────────────┴─────────────────┴────────────────────┘    │
+│  ┌──────────────┬─────────────────────────────────────┐     │
+│  │ KeyEncoder   │ RowCodec                             │     │
+│  └──────────────┴─────────────────────────────────────┘     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    RocksDB Storage                           │
+│  • Key-Value Store  • ACID Properties  • Persistence        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
 | Component | Description |
 |-----------|-------------|
-| **MysqlMockServer** | Main server class, sets up Netty pipeline |
-| **ServerHandler** | Connection handler with state management and connection tracking |
-| **ConnectContext** | Stores per-connection data (scramble, connection ID) |
-| **HandshakeHandler** | Sends MySQL handshake packet with server capabilities |
-| **AuthHandler** | Handles mysql_native_password authentication (3 wire formats) |
-| **CommandHandler** | Routes SQL commands to appropriate handlers |
-| **QueryHandler** | Generates result sets for queries |
-| **PacketDecoder/Encoder** | Converts between bytes and Packet objects |
+| **MysqlServer** | Main server class, initializes Netty pipeline |
+| **ServerHandler** | Manages connection lifecycle and state transitions |
+| **ConnectContext** | Per-connection state (scramble, capabilities, connection ID) |
+| **HandshakeHandler** | Sends initial handshake packet to client |
+| **AuthHandler** | Validates mysql_native_password authentication |
+| **CommandHandler** | Routes COM_* commands to appropriate handlers |
+| **QueryHandler** | Executes SQL queries and generates result sets |
+| **SqlParse** | Parses and executes SQL statements using JSQLParser |
+| **DatabaseEngine** | Coordinates all database operations |
+| **DatabaseManager** | Manages database-level operations (CREATE/DROP/USE) |
+| **MetadataManager** | Manages table schemas and metadata |
+| **StorageManager** | Handles data CRUD operations via RocksDB |
 
 ## 📊 Connection Monitoring
 
 ### Active Connection Tracking
 
-The server automatically tracks the number of active client connections using a thread-safe `AtomicInteger`.
+The server automatically tracks active client connections using thread-safe counters.
+
+```java
+// Get current active connection count
+int activeConnections = ServerHandler.getActiveConnectionCount();
+logger.info("Active connections: {}", activeConnections);
+```
 
 **Features:**
-- Automatic increment when a client connects (`channelActive`)
-- Automatic decrement when a client disconnects (`channelInactive`)
-- Thread-safe counter for concurrent connections
+- Automatic increment on connection establishment
+- Automatic decrement on connection close
+- Thread-safe implementation with AtomicInteger
 - Real-time logging of connection events
 
-**Getting Active Connection Count:**
+**Log Output:**
+```
+2025-12-08 10:15:30.123 [netty-thread-1] INFO ServerHandler - Client connected: /127.0.0.1:54321, active connections: 1
+2025-12-08 10:15:45.456 [netty-thread-2] INFO ServerHandler - Client disconnected: /127.0.0.1:54321, active connections: 0
+```
+
+## 🧪 Testing
+
+### Run All Tests
+
+```bash
+mvn test
+```
+
+### Run Specific Test
+
+```bash
+# Database engine tests
+mvn test -Dtest=DatabasePersistenceTest
+
+# SQL parser tests
+mvn test -Dtest=SqlParseTest
+```
+
+### Test Coverage
+
+| Test Suite | Coverage |
+|------------|----------|
+| **DatabasePersistenceTest** | Database/table creation, CRUD operations, persistence |
+| **SqlParseTest** | SELECT, INSERT, UPDATE, DELETE with various clauses |
+
+### Example Tests
 
 ```java
-// Get current active connection count anywhere in your code
-int activeConnections = ServerHandler.getActiveConnectionCount();
-logger.info("Current active connections: {}", activeConnections);
+// Test SELECT with WHERE clause
+@Test
+public void testSelectWithWhereStatement() throws Exception {
+    String sql = "SELECT * FROM users WHERE id = 1";
+    SqlData result = SqlParse.parseSql(sql, engine);
+    
+    assertEquals(1, result.getRows().size());
+    assertEquals(1, result.getRows().get(0).get("id"));
+}
+
+// Test UPDATE statement
+@Test
+public void testUpdateStatement() throws Exception {
+    String sql = "UPDATE users SET age = 31 WHERE id = 1";
+    SqlParse.parseSql(sql, engine);
+    
+    // Verify update
+    Map<String, Object> pk = Map.of("id", 1);
+    Map<String, Object> row = engine.selectByPrimaryKey("users", pk);
+    assertEquals(31, row.get("age"));
+}
 ```
 
-**Connection Events in Logs:**
+## 📖 Examples
 
+### Example 1: SQL Parser Demo
+
+Run the comprehensive SQL demo:
+
+```bash
+mvn exec:java -Dexec.mainClass="cc.fastsoft.sql.SqlParseExample"
 ```
-2025-12-05 10:15:30.123 [nioEventLoopGroup-3-1] INFO  c.f.jdbc.ServerHandler - Creating new connection handler. Active connections: 1
-2025-12-05 10:15:30.456 [nioEventLoopGroup-3-1] INFO  c.f.jdbc.ServerHandler - Client connected: /127.0.0.1:54321. Total active connections: 1
-2025-12-05 10:16:45.789 [nioEventLoopGroup-3-1] INFO  c.f.jdbc.ServerHandler - Client disconnected: /127.0.0.1:54321. Remaining active connections: 0
+
+This demonstrates:
+- Database and table creation
+- Multiple INSERT operations
+- Various SELECT queries (*, columns, aliases, WHERE, LIMIT)
+- UPDATE operations
+- DELETE operations
+
+### Example 2: JDBC Connection
+
+See `src/main/java/cc/fastsoft/example/Example.java`:
+
+```java
+public class Example {
+    public static void main(String[] args) {
+        String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false";
+        String user = "root";
+        String password = "123456";
+        
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+            Statement stmt = conn.createStatement();
+            
+            // Execute query
+            ResultSet rs = stmt.executeQuery("SHOW DATABASES");
+            while (rs.next()) {
+                System.out.println("Database: " + rs.getString(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
 ```
 
-### Connection Context
+### Example 3: Programmatic Database API
 
-Each connection has its own `ConnectContext` containing:
-- **Connection ID** - Unique incremental ID
-- **Scramble** - 20-byte random challenge for authentication
-- **Authentication State** - Tracked in ServerHandler
+```java
+DatabaseEngine engine = new DatabaseEngine();
 
-## 📝 Logging Configuration
+// Create database
+engine.createDatabase("myapp");
+engine.useDatabase("myapp");
 
-The logging configuration file is located at `src/main/resources/logback.xml`.
+// Define schema
+List<Column> columns = List.of(
+    new Column("id", ColumnType.INT),
+    new Column("name", ColumnType.STRING),
+    new Column("email", ColumnType.STRING),
+    new Column("age", ColumnType.INT)
+);
+engine.createTable("users", columns, List.of("id"));
 
-**Log Levels:**
-- `cc.fastsoft` package: DEBUG (detailed protocol messages)
-- `io.netty` package: INFO
-- Root log level: INFO
+// Insert data
+Map<String, Object> user = new HashMap<>();
+user.put("id", 1);
+user.put("name", "Alice");
+user.put("email", "alice@example.com");
+user.put("age", 30);
+engine.insert("users", user);
 
-**Log Output:**
-- Console output: Real-time log viewing with color coding
-- File output: Daily rolling files in `logs/` directory
+// Query data
+List<Map<String, Object>> results = engine.selectAll("users");
+for (Map<String, Object> row : results) {
+    System.out.println(row);
+}
 
-**Key Log Messages:**
-- Handshake: scramble generation, capability flags
-- Authentication: wire format used, verification steps (SHA-1 calculations)
-- Commands: SQL received, result sets sent
-- Connections: connect/disconnect events, active count
+engine.close();
+```
 
-Example of changing log level:
+## ⚙️ Configuration
+
+### Server Port
+
+Edit `MysqlServer.java`:
+
+```java
+private static final int PORT = 2883; // Change to your desired port
+```
+
+### Authentication
+
+Edit `AuthHandler.java`:
+
+```java
+private static final String VALID_PASSWORD = "123456"; // Change password
+```
+
+### RocksDB Path
+
+Set via system property:
+
+```java
+System.setProperty("rocksdb.path", "/path/to/data");
+```
+
+Or pass as JVM argument:
+
+```bash
+mvn exec:java -Dexec.mainClass="cc.fastsoft.MysqlServer" -Drocksdb.path=/path/to/data
+```
+
+### Logging Level
+
+Edit `src/main/resources/logback.xml`:
 
 ```xml
-<logger name="cc.fastsoft" level="INFO"/>  <!-- Change to INFO to reduce verbosity -->
+<logger name="cc.fastsoft" level="DEBUG"/>  <!-- Change to INFO, WARN, ERROR -->
 ```
 
-## 💡 Example Queries
+## 🔍 Troubleshooting
 
-### Show Database List
+### Connection Issues
 
-```sql
-SHOW DATABASES;
-```
+**Problem:** Client cannot connect
 
-Output:
-```
-+--------------------+
-| Database           |
-+--------------------+
-| information_schema |
-| mysql              |
-| performance_schema |
-| sys                |
-| test_db            |
-| my_database        |
-+--------------------+
-6 rows in set (0.00 sec)
-```
+**Solutions:**
+1. Check if server is running: `netstat -an | grep 2883`
+2. Verify firewall allows connections on port 2883
+3. Use correct connection parameters (host, port, username, password)
+4. Disable SSL: Add `--ssl-mode=DISABLED` (CLI) or `useSSL=false` (JDBC)
 
-### Simple Query Test
+### Authentication Failures
 
-```sql
-SELECT 1 AS value;
-```
+**Problem:** Authentication failed for user 'root'
 
-Output:
-```
-+-------+
-| value |
-+-------+
-|     1 |
-+-------+
-1 row in set (0.00 sec)
-```
+**Solutions:**
+1. Verify password is `123456`
+2. Check client supports `mysql_native_password`
+3. Review authentication logs in `logs/application.log`
+4. Add `allowPublicKeyRetrieval=true` to JDBC URL
 
-### System Variable Query
+### SQL Errors
 
-```sql
-SELECT @@version_comment;
-```
+**Problem:** SQL command returns error
 
-Output:
-```
-+-------------------+
-| @@version_comment |
-+-------------------+
-| MySQL Mock Server |
-+-------------------+
-1 row in set (0.00 sec)
-```
+**Solutions:**
+1. Check SQL syntax is correct
+2. Verify database and table exist
+3. Ensure you've called `USE database` before table operations
+4. Review supported SQL commands in this README
+5. Check logs for detailed error messages
 
-### Multiple Queries
+### Data Persistence Issues
 
-```sql
-SELECT DATABASE();
-USE test_db;
-SELECT 'Hello, World!' AS message;
-```
+**Problem:** Data lost after restart
 
-Output:
-```
-+------------+
-| DATABASE() |
-+------------+
-| NULL       |
-+------------+
+**Solutions:**
+1. Verify RocksDB path is correct
+2. Check disk space availability
+3. Ensure RocksDB directory has write permissions
+4. Review logs for RocksDB errors
 
-Database changed
-
-+-----------------+
-| message         |
-+-----------------+
-| Hello, World!   |
-+-----------------+
-```
-
-## ⚙️ Custom Configuration
-
-### Change Server Port
-
-Modify in `MysqlMockServer.java`:
-
-```java
-int port = 2883;  // Change to your desired port
-```
-
-### Change Authentication Password
-
-Modify the password in `ServerHandler` constructor:
-
-```java
-this.authHandler = new AuthHandler("your_password", ctx.getScramble());
-```
-
-### Add Custom Mock Databases
-
-Modify in `QueryHandler.java` to add more databases to the mock list:
-
-```java
-private static final String[] MOCK_DATABASES = {
-    "information_schema",
-    "mysql",
-    "performance_schema",
-    "sys",
-    "test_db",
-    "my_database",
-    "your_custom_db",    // Add your database
-    "another_db"         // Add another
-};
-```
-
-### Adjust Worker Threads
-
-For higher concurrency, modify the worker thread pool size in `MysqlMockServer.java`:
-
-```java
-EventLoopGroup workerGroup = new MultiThreadIoEventLoopGroup(16, NioIoHandler.newFactory());
-// Increase from 8 to 16 or more based on your needs
-```
-
-## Development Guide
-
-### Adding New SQL Command Support
-
-Add in the `handleQuery` method of `ServerHandler.java`:
-
-```java
-} else if (sqlUpper.startsWith("YOUR COMMAND")) {
-    // Handle your command
-    sendSimpleResultSet(ctx, columnNames, rows);
-}
-```
-
-### Debugging Tips
-
-1. **Enable Verbose Logging**: Set log level to DEBUG
-2. **Packet Analysis**: Use Wireshark or tcpdump to analyze MySQL protocol
-3. **Use Breakpoints**: Set breakpoints on key methods in your IDE
-
-## ❓ FAQ
-
-### Q: Getting SSL error when connecting?
-**A:** Use `--ssl-mode=DISABLED` parameter to disable SSL:
-```bash
-mysql -h127.0.0.1 -uroot -P2883 -p123456 --ssl-mode=DISABLED
-```
-For JDBC, add to connection URL: `useSSL=false`
-
-### Q: Authentication failed with JDBC?
-**A:** Make sure you're using the correct connection URL format:
-```java
-String url = "jdbc:mysql://127.0.0.1:2883/?useSSL=false&allowPublicKeyRetrieval=true";
-```
-The server supports all mysql_native_password wire formats.
-
-### Q: DBeaver connection timeout or failed?
-**A:** Check the following:
-1. Set `useSSL=false` in Driver properties
-2. Set `allowPublicKeyRetrieval=true` in Driver properties
-3. Make sure the server is running on port 2883
-4. Check firewall settings
-
-### Q: Port already in use?
-**A:** Find and kill the process using port 2883:
-```bash
-# macOS/Linux
-lsof -ti:2883 | xargs kill -9
-
-# Or check what's using the port
-lsof -i:2883
-```
-
-### Q: How to view logs?
-**A:** Logs are output to:
-- **Console**: Real-time output when running the server
-- **File**: Check the `logs/` directory (daily rolling logs)
-
-Enable DEBUG logging in `logback.xml` for more details.
-
-### Q: How to monitor active connections?
-**A:** Check the server logs for connection events:
-```
-Client connected: /127.0.0.1:54321. Total active connections: 5
-Client disconnected: /127.0.0.1:54321. Remaining active connections: 4
-```
-Or programmatically:
-```java
-int count = ServerHandler.getActiveConnectionCount();
-```
-
-### Q: Does it support transactions?
-**A:** No, this is a mock server. It returns predefined responses and doesn't support:
-- Transactions (BEGIN, COMMIT, ROLLBACK)
-- Complex queries (JOINs, subqueries)
-- Data persistence
-- Stored procedures or triggers
-
-### Q: Can I use this in production?
-**A:** No, this is designed for **testing and development only**. For production, use a real MySQL database.
-
-## ⚡ Performance Optimization
-
-### Server-Side Optimizations
-
-1. **Adjust Worker Threads**
-   
-   Modify the worker thread pool size in `MysqlMockServer.java`:
-   ```java
-   EventLoopGroup workerGroup = new MultiThreadIoEventLoopGroup(16, NioIoHandler.newFactory());
-   // Default is 8, increase for higher concurrency
-   ```
-
-2. **Async Logging**
-   
-   Async logging is configured in `logback.xml`. Adjust the queue size:
-   ```xml
-   <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
-       <queueSize>512</queueSize>  <!-- Increase if needed -->
-   </appender>
-   ```
-
-3. **Reduce Log Level**
-   
-   For production-like testing, reduce logging verbosity:
-   ```xml
-   <logger name="cc.fastsoft" level="INFO"/>  <!-- Change from DEBUG -->
-   ```
-
-### Client-Side Optimizations
-
-1. **Connection Pooling**
-   
-   Use connection pooling for high-concurrency scenarios:
-   ```java
-   // Example with HikariCP
-   HikariConfig config = new HikariConfig();
-   config.setJdbcUrl("jdbc:mysql://127.0.0.1:2883/?useSSL=false");
-   config.setUsername("root");
-   config.setPassword("123456");
-   config.setMaximumPoolSize(20);
-   HikariDataSource ds = new HikariDataSource(config);
-   ```
-
-2. **Reuse Connections**
-   
-   Don't create a new connection for each query:
-   ```java
-   // Bad
-   for (int i = 0; i < 1000; i++) {
-       Connection conn = DriverManager.getConnection(url, user, pass);
-       // ... query ...
-       conn.close();
-   }
-   
-   // Good
-   Connection conn = DriverManager.getConnection(url, user, pass);
-   for (int i = 0; i < 1000; i++) {
-       // ... query ...
-   }
-   conn.close();
-   ```
-
-### Monitoring
-
-Monitor active connections to detect leaks:
-```java
-int activeConnections = ServerHandler.getActiveConnectionCount();
-if (activeConnections > threshold) {
-    logger.warn("High connection count: {}", activeConnections);
-}
-```
-
-## ⚠️ Limitations
-
-This is a **mock server** designed for testing and development. It has the following limitations:
-
-### Data & Storage
-- ❌ **No data persistence** - All data is in-memory and predefined
-- ❌ **No real database storage** - RocksDB integration is available but optional
-- ❌ **No table creation** - Cannot execute CREATE TABLE, ALTER TABLE, etc.
+## 🚧 Limitations
 
 ### SQL Support
-- ❌ **No complex queries** - JOINs, subqueries, GROUP BY, HAVING not supported
-- ❌ **No INSERT/UPDATE/DELETE** - Only returns OK packets, no actual data modification
-- ❌ **Limited WHERE clauses** - Cannot filter results dynamically
+- Only equality operators in WHERE clause (no >, <, >=, <=, LIKE, IN)
+- No JOIN support
+- No aggregate functions (COUNT, SUM, AVG, etc.)
+- No GROUP BY, HAVING, ORDER BY
+- No subqueries
+- No transactions (BEGIN, COMMIT, ROLLBACK)
+- No CREATE TABLE via SQL (use API)
 
-### Transaction & Concurrency
-- ❌ **No transaction support** - BEGIN, COMMIT, ROLLBACK are ignored
-- ❌ **No isolation levels** - All queries are independent
-- ❌ **No locking mechanisms** - No row-level or table-level locks
+### Performance
+- Full table scans for WHERE clause evaluation
+- No secondary indexes (only primary key)
+- In-memory filtering (not pushed to storage layer)
 
-### Advanced Features
-- ❌ **No stored procedures** - Cannot execute or create stored procedures
-- ❌ **No triggers** - No trigger support
-- ❌ **No views** - Cannot create or query views
-- ❌ **No prepared statements** - Only text protocol supported
-- ❌ **No replication** - Single server only
+### Protocol
+- Only supports mysql_native_password authentication
+- No SSL/TLS encryption
+- No prepared statements
+- No stored procedures
 
-### Authentication & Security
-- ⚠️ **Simplified authentication** - Only mysql_native_password supported
-- ⚠️ **No user management** - Single hardcoded user (root/123456)
-- ⚠️ **No SSL/TLS** - Must disable SSL on client side
-- ⚠️ **Testing only** - Do not use in production environments
+## 🛣 Roadmap
 
-### Use Cases
+### Short-term (v1.1)
+- [ ] Add comparison operators in WHERE (>, <, >=, <=, !=)
+- [ ] Implement LIKE operator
+- [ ] Add IN clause support
+- [ ] Implement ORDER BY
+- [ ] Add aggregate functions (COUNT, SUM, AVG, MIN, MAX)
 
-✅ **Good for:**
-- Integration testing
-- Development mockups
-- Protocol testing
-- Client compatibility testing
-- Educational purposes
+### Mid-term (v1.5)
+- [ ] JOIN operations (INNER, LEFT, RIGHT)
+- [ ] GROUP BY and HAVING
+- [ ] Secondary indexes
+- [ ] Transaction support
+- [ ] CREATE TABLE via SQL
 
-❌ **Not suitable for:**
-- Production environments
-- Data persistence requirements
-- Complex query testing
-- Performance benchmarking of real MySQL
+### Long-term (v2.0)
+- [ ] SSL/TLS support
+- [ ] Prepared statements
+- [ ] Stored procedures
+- [ ] Replication support
+- [ ] Cluster mode
 
-## Contributing
+## 📝 Documentation
 
-Issues and Pull Requests are welcome!
+- **README.md** - This file, main documentation
+- **SQL_IMPLEMENTATION.md** - Detailed SQL feature documentation
+- **Javadoc** - Generate with `mvn javadoc:javadoc`
 
-## License
+## 🤝 Contributing
 
-This project is licensed under the MIT License.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Contact
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- Author: fastsoft
-- Project: [GitHub](https://github.com/your-username/mysql-simple-server)
+### Development Guidelines
 
-## 📜 Changelog
+- Follow existing code style and formatting
+- Add unit tests for new features
+- Update documentation as needed
+- Keep commits atomic and well-described
+- Ensure all tests pass before submitting PR
 
-### v1.1.0 (2025-12-05)
-- ✅ **New Feature:** Real-time connection monitoring with thread-safe counter
-- ✅ **New Feature:** Connection context with unique connection IDs
-- ✅ **Enhancement:** Improved HandshakeHandler with proper MySQL capability flags
-- ✅ **Enhancement:** AuthHandler now supports all mysql_native_password wire formats:
-  - CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (length-encoded format)
-  - CLIENT_SECURE_CONNECTION (new protocol: 1-byte length + data)
-  - Legacy protocol (null-terminated format)
-- ✅ **Fix:** Resolved JDBC authentication issues with proper wire format handling
-- ✅ **Fix:** Corrected RocksDB import path errors
-- ✅ **Enhancement:** Added comprehensive debug logging throughout the protocol stack
-- ✅ **Documentation:** Complete README overhaul with detailed examples
+## 📄 License
 
-### v1.0.0 (2025-12-04)
-- ✅ Initial release
-- ✅ Basic MySQL protocol support (handshake, authentication, command phase)
-- ✅ Common SHOW commands support (DATABASES, VARIABLES, etc.)
-- ✅ Logback logging framework integration with async logging
-- ✅ DBeaver and MySQL CLI client compatibility
-- ✅ Netty-based asynchronous I/O architecture
+This project is open source and available under the MIT License.
+
+## 🙏 Acknowledgments
+
+- **Netty** - High-performance network framework
+- **RocksDB** - Embedded database engine
+- **JSQLParser** - SQL parsing library
+- **MySQL** - Protocol specification
+
+## 📧 Contact
+
+For questions, issues, or suggestions:
+- Open an issue on GitHub
+- Contact the maintainers
+
+## 🌟 Show Your Support
+
+If you find this project helpful, please give it a ⭐️ on GitHub!
+
+---
+
+**Built with ❤️ by the MySQL Simple Server team**
 
