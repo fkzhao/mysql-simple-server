@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class MysqlPassword {
-    private static final Logger LOG = LoggerFactory.getLogger(MysqlPassword.class);
+    private static final Logger logger = LoggerFactory.getLogger(MysqlPassword.class);
     public static final byte[] EMPTY_PASSWORD = new byte[0];
     public static final int SCRAMBLE_LENGTH = 20;
     public static final int SCRAMBLE_LENGTH_HEX_LENGTH = 2 * SCRAMBLE_LENGTH + 1;
@@ -76,7 +76,7 @@ public class MysqlPassword {
         try {
             md = MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
-            LOG.warn("No SHA-1 Algorithm when compute password.");
+            logger.warn("No SHA-1 Algorithm when compute password.");
             return false;
         }
         // compute result1: XOR(scramble, SHA-1 (public_seed + hashStage2))
@@ -107,7 +107,7 @@ public class MysqlPassword {
             scramblePassword = xorCrypt(hashStage1, md.digest(hashStage2));
         } catch (Exception e) {
             // no UTF-8 character set
-            LOG.warn("No UTF-8 character set when compute password. {}", e);
+            logger.warn("No UTF-8 character set when compute password. {}", e);
         }
 
         return scramblePassword;
@@ -124,7 +124,7 @@ public class MysqlPassword {
 
             return md.digest(hashStage1);
         } catch (Exception e) {
-           LOG.warn("Two Stage Hash has exception:{}", e);
+            logger.warn("Two Stage Hash has exception:{}", e);
         }
 
         return null;
@@ -204,7 +204,7 @@ public class MysqlPassword {
             passwdString = passwdString.toUpperCase();
             passwd = passwdString.getBytes("UTF-8");
         } catch (UnsupportedEncodingException e) {
-            LOG.error(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
         }
         if (passwd.length != SCRAMBLE_LENGTH_HEX_LENGTH || passwd[0] != PVERSION41_CHAR) {
             throw new Exception("Wrong password format");
@@ -242,6 +242,56 @@ public class MysqlPassword {
             throw new Exception(
                     "Violate password validation policy: STRONG. The password must contain at least 3 types of "
                             + "numbers, uppercase letters, lowercase letters and special characters.");
+        }
+    }
+
+    public static boolean verifyPassword(String password, byte[] nonce, byte[] clientResponse, String authPluginName) {
+        if (authPluginName.equalsIgnoreCase(Constants.MYSQL_NATIVE_PASSWORD)) {
+            return nativeVerify(password, nonce, clientResponse);
+        }
+        throw new IllegalArgumentException("Unsupported auth plugin name: " + authPluginName);
+    }
+
+    /**
+     * Verify password using mysql_native_password method
+     */
+    public static boolean nativeVerify(String password, byte[] nonce, byte[] clientResponse) {
+
+        // Debug input parameters
+        logger.debug("nativeVerify - password: '{}', nonce length: {} (hex):{}, clientResponse length: {} (hex): {}",
+                password, nonce.length, cc.fastsoft.utils.StringUtils.bytesToHex(nonce), clientResponse.length, cc.fastsoft.utils.StringUtils.bytesToHex(clientResponse));
+
+        // Handle empty password case
+        if (password.isEmpty()) {
+            boolean result = clientResponse.length == 0;
+            logger.debug("Empty password check: {}", result);
+            return result;
+        }
+
+        // Perform SHA-1 based verification
+        try {
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            byte[] step1 = sha1.digest(password.getBytes(StandardCharsets.UTF_8));
+            logger.debug("Step1 (SHA1(password)): {}", cc.fastsoft.utils.StringUtils.bytesToHex(step1));
+
+            byte[] step2 = sha1.digest(step1);
+            logger.debug("Step2 (SHA1(SHA1(password))): {}", cc.fastsoft.utils.StringUtils.bytesToHex(step2));
+
+            sha1.update(nonce);
+            sha1.update(step2);
+            byte[] expected = sha1.digest();
+            logger.debug("Step3 (SHA1(nonce + step2)): {}", cc.fastsoft.utils.StringUtils.bytesToHex(expected));
+
+            for (int i = 0; i < 20; i++) expected[i] ^= step1[i];
+            logger.debug("Expected result (step3 XOR step1): {}", cc.fastsoft.utils.StringUtils.bytesToHex(expected));
+            logger.debug("Client response: {}", cc.fastsoft.utils.StringUtils.bytesToHex(clientResponse));
+
+            boolean result = MessageDigest.isEqual(expected, clientResponse);
+            logger.debug("Verification result: {}", result);
+            return result;
+        } catch (Exception e) {
+            logger.error("Error during native password verification", e);
+            return false;
         }
     }
 }

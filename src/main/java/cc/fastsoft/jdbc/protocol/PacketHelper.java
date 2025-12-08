@@ -1,5 +1,7 @@
 package cc.fastsoft.jdbc.protocol;
 
+import cc.fastsoft.jdbc.protocol.packet.MysqlPacket;
+import cc.fastsoft.jdbc.protocol.packet.Packet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;

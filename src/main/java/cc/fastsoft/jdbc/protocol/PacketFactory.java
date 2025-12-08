@@ -1,5 +1,12 @@
 package cc.fastsoft.jdbc.protocol;
 
+import cc.fastsoft.jdbc.protocol.packet.AuthPacket;
+import cc.fastsoft.jdbc.protocol.packet.CommandPacket;
+import cc.fastsoft.jdbc.protocol.packet.EOFPacket;
+import cc.fastsoft.jdbc.protocol.packet.ErrPacket;
+import cc.fastsoft.jdbc.protocol.packet.HandshakePacket;
+import cc.fastsoft.jdbc.protocol.packet.MysqlPacket;
+import cc.fastsoft.jdbc.protocol.packet.OkPacket;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -47,8 +54,8 @@ public class PacketFactory {
             case 0x0A:
                 // Handshake packet (starts with protocol version 10)
                 packet = new HandshakePacket(sequenceId);
+                packet.read(buffer);
                 break;
-
             default:
                 // Could be Command packet, Auth packet, or data packet
                 // Default to generic read
@@ -60,6 +67,12 @@ public class PacketFactory {
             packet.read(buffer);
         }
 
+        return packet;
+    }
+
+    public static AuthPacket createAuthPacketFromBuf(ByteBuf buffer) {
+        AuthPacket packet = new AuthPacket();
+        packet.read(buffer);
         return packet;
     }
 
@@ -127,22 +140,6 @@ public class PacketFactory {
         CommandPacket packet = new CommandPacket(command, argument);
         packet.setSequenceId(sequenceId);
         return packet;
-    }
-
-    /**
-     * Create a Column Definition packet
-     */
-    public static ColumnDefinitionPacket createColumnPacket(byte sequenceId, String name, byte type, long length) {
-        ColumnDefinitionPacket packet = new ColumnDefinitionPacket(name, type, length);
-        packet.setSequenceId(sequenceId);
-        return packet;
-    }
-
-    /**
-     * Create a Result Set Row packet
-     */
-    public static ResultSetRowPacket createRowPacket(byte sequenceId) {
-        return new ResultSetRowPacket(sequenceId);
     }
 }
 

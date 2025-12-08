@@ -1,6 +1,6 @@
 package cc.fastsoft.jdbc.protocol.codec;
 
-import cc.fastsoft.jdbc.protocol.Packet;
+import cc.fastsoft.jdbc.protocol.packet.Packet;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.slf4j.Logger;

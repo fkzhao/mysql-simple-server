@@ -1,4 +1,4 @@
-package cc.fastsoft.jdbc.protocol;
+package cc.fastsoft.jdbc.protocol.packet;
 
 import io.netty.buffer.ByteBuf;
 

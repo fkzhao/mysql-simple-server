@@ -1,17 +1,24 @@
 package cc.fastsoft.jdbc.hander;
 
+import cc.fastsoft.db.DatabaseEngine;
+import cc.fastsoft.db.schema.TableSchema;
 import cc.fastsoft.jdbc.protocol.PacketHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Handles SQL query execution
  */
 public class QueryHandler {
     private static final Logger logger = LoggerFactory.getLogger(QueryHandler.class);
+    private static final DatabaseEngine databaseEngine = new DatabaseEngine();
 
     /**
      * Handle SQL query
@@ -20,20 +27,17 @@ public class QueryHandler {
         String sqlUpper = sql.trim().toUpperCase();
 
         try {
-            if (sqlUpper.startsWith("SELECT 1")) {
-                sendResultSet(ctx, new String[]{"value"}, new String[][]{{"1"}}, sequenceId, clientCapabilities);
-            } else if (sqlUpper.equals("SHOW DATABASES") || sqlUpper.equals("SHOW SCHEMAS")) {
+            if (sqlUpper.equals("SHOW DATABASES") || sqlUpper.equals("SHOW SCHEMAS")) {
                 handleShowDatabases(ctx, sequenceId, clientCapabilities);
             } else if (sqlUpper.startsWith("SELECT @@") || sqlUpper.startsWith("SELECT DATABASE()")) {
                 handleSystemVariableQuery(ctx, sql, sequenceId, clientCapabilities);
-            } else if (sqlUpper.startsWith("SHOW ENGINES") || sqlUpper.startsWith("SHOW CHARSET") ||
-                       sqlUpper.startsWith("SHOW COLLATION") || sqlUpper.startsWith("SHOW PLUGINS") ||
-                       sqlUpper.startsWith("SHOW VARIABLES")) {
-                sendEmptyResultSet(ctx, sql, sequenceId, clientCapabilities);
+            } else if (sqlUpper.startsWith("SHOW VARIABLES")) {
+                handleShowVariables(ctx, sql, sequenceId, clientCapabilities);
             } else if (sqlUpper.startsWith("SET ")) {
                 PacketHelper.sendOkPacket(ctx, "OK", sequenceId);
             } else {
-                PacketHelper.sendOkPacket(ctx, "Query executed: " + sql, sequenceId);
+                handleDbQuery(ctx, sequenceId, clientCapabilities, sql);
+//                PacketHelper.sendOkPacket(ctx, "Query executed: " + sql, sequenceId);
             }
         } catch (Exception e) {
             logger.error("Error handling query: {}", sql, e);
@@ -145,27 +149,6 @@ public class QueryHandler {
     }
 
     /**
-     * Send empty result set
-     */
-    private void sendEmptyResultSet(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
-        String sqlUpper = sql.toUpperCase();
-
-        if (sqlUpper.startsWith("SHOW ENGINES")) {
-            sendResultSet(ctx, new String[]{"Engine", "Support", "Comment"}, new String[0][0], sequenceId, clientCapabilities);
-        } else if (sqlUpper.startsWith("SHOW CHARSET")) {
-            sendResultSet(ctx, new String[]{"Charset", "Description"}, new String[0][0], sequenceId, clientCapabilities);
-        } else if (sqlUpper.startsWith("SHOW COLLATION")) {
-            sendResultSet(ctx, new String[]{"Collation", "Charset"}, new String[0][0], sequenceId, clientCapabilities);
-        } else if (sqlUpper.startsWith("SHOW PLUGINS")) {
-            sendResultSet(ctx, new String[]{"Name", "Status"}, new String[0][0], sequenceId, clientCapabilities);
-        } else if (sqlUpper.startsWith("SHOW VARIABLES")) {
-            handleShowVariables(ctx, sql, sequenceId, clientCapabilities);
-        } else {
-            PacketHelper.sendOkPacket(ctx, "OK", sequenceId);
-        }
-    }
-
-    /**
      * Handle SHOW VARIABLES command
      */
     private void handleShowVariables(ChannelHandlerContext ctx, String sql, byte sequenceId, int clientCapabilities) {
@@ -226,6 +209,24 @@ public class QueryHandler {
         } else {
             sendResultSet(ctx, new String[]{"Variable_name", "Value"}, allVariables, sequenceId, clientCapabilities);
         }
+    }
+
+    private void handleDbQuery(ChannelHandlerContext ctx, byte sequenceId, int clientCapabilities, String query) throws RocksDBException {
+        databaseEngine.useDatabase("demo");
+        TableSchema tableSchema = databaseEngine.getTableSchema("users");
+        String[] columnNames = tableSchema.getColumns().stream().map(c -> c.name).toArray(String[]::new);
+        List<Map<String, Object>> selectedRow = databaseEngine.selectAll("users");
+        String[][] dataList = new String[selectedRow.size()][columnNames.length];
+        for (int i = 0; i < selectedRow.size(); i++) {
+            Map<String, Object> row = selectedRow.get(i);
+            logger.info("Row: {}", row);
+            for (int j = 0; j < columnNames.length; j++) {
+                Object value = row.get(columnNames[j]);
+                dataList[i][j] = value == null ? "" : value.toString();
+            }
+        }
+        sendResultSet(ctx, columnNames, dataList, sequenceId, clientCapabilities);
+
     }
 }
 

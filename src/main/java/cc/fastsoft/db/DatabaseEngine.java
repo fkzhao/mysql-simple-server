@@ -278,4 +278,48 @@ public class DatabaseEngine implements Closeable {
             rocksDbHandle.getDb().close();
         }
     }
+
+    public static void main(String[] args) {
+        DatabaseEngine engine = new DatabaseEngine();
+        try {
+            // Example usage
+            engine.createDatabase("demo");
+            engine.useDatabase("demo");
+
+            // Define table schema
+            List<Column> columns = List.of(
+                    new Column("id", ColumnType.INT),
+                    new Column("name", ColumnType.STRING),
+                    new Column("age", ColumnType.INT),
+                    new Column("type", ColumnType.STRING),
+                    new Column("created_at", ColumnType.LONG)
+            );
+            List<String> pkColumns = List.of("id");
+
+            // Create table
+            engine.createTable("users", columns, pkColumns);
+
+            // Insert a row
+            for (int i = 1; i <= 10; i++) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", i);
+                row.put("name", "User" + i);
+                row.put("age", 20 + i);
+                row.put("type", i % 2 == 0 ? "admin" : "guest");
+                row.put("created_at", System.currentTimeMillis());
+                engine.insert("users", row);
+            }
+
+            // Select the row
+            Map<String, Object> pkValues = new HashMap<>();
+            pkValues.put("id", 1);
+            Map<String, Object> selectedRow = engine.selectByPrimaryKey("users", pkValues);
+            System.out.println("Selected Row: " + selectedRow);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            engine.close();
+        }
+    }
 }

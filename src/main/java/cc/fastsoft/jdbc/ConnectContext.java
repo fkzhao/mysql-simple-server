@@ -7,16 +7,13 @@ import java.security.SecureRandom;
 import static cc.fastsoft.jdbc.protocol.MysqlPassword.SCRAMBLE_LENGTH;
 
 public class ConnectContext {
-    private static final int SCRAMBLE_LENGTH = 20;
-    final byte[] scramble;
     private int connectionId = 0;
+    private String userName;
+    private String database;
+    private int clientCapabilities = 0;
 
     public ConnectContext() {
-        this.scramble =  MysqlPassword.createRandomString(SCRAMBLE_LENGTH);;
-    }
 
-    public byte[] getScramble() {
-        return scramble;
     }
 
     public int getConnectionId() {
@@ -25,5 +22,33 @@ public class ConnectContext {
 
     public void setConnectionId(int connectionId) {
         this.connectionId = connectionId;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getDatabase() {
+        return database;
+    }
+
+    public void setDatabase(String database) {
+        this.database = database;
+    }
+
+    public boolean isAuthenticated() {
+        return userName != null && !userName.isEmpty();
+    }
+
+    public int getClientCapabilities() {
+        return clientCapabilities;
+    }
+
+    public void setClientCapabilities(int clientCapabilities) {
+        this.clientCapabilities = clientCapabilities;
     }
 }

@@ -1,5 +1,7 @@
-package cc.fastsoft.jdbc.protocol;
+package cc.fastsoft.jdbc.protocol.packet;
 
+import cc.fastsoft.jdbc.protocol.Constants;
+import cc.fastsoft.jdbc.protocol.PacketHelper;
 import io.netty.buffer.ByteBuf;
 
 /**

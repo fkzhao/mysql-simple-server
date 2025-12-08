@@ -57,5 +57,15 @@ public class TableSchema {
         return new TableSchema(tableName, cols, pks);
     }
 
+    public String getTableName() {
+        return tableName;
+    }
 
+    public List<Column> getColumns() {
+        return columns;
+    }
+
+    public List<String> getPrimaryKeyColumns() {
+        return primaryKeyColumns;
+    }
 }

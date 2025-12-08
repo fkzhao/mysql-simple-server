@@ -10,26 +10,6 @@ public class MysqlProto {
     private static final Logger LOG = LoggerFactory.getLogger(MysqlProto.class);
     public static final boolean SERVER_USE_SSL = false;
 
-
-    private static String parseUser(ConnectContext context, byte[] scramble, String user) {
-        String usePasswd = scramble.length == 0 ? "NO" : "YES";
-        String tmpUser = user;
-        if (tmpUser == null || tmpUser.isEmpty()) {
-            return null;
-        }
-
-        // check workload group level. user name may contains workload group level.
-        // eg:
-        // ...@user_name#HIGH
-        // set workload group if it is valid, or just ignore it
-        String[] strList = tmpUser.split("#", 2);
-        if (strList.length > 1) {
-            tmpUser = strList[0];
-        }
-
-        return tmpUser;
-    }
-
     public static byte readByte(ByteBuffer buffer) {
         return buffer.get();
     }

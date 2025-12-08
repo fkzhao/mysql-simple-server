@@ -1,9 +1,12 @@
 package cc.fastsoft.jdbc;
 
-import cc.fastsoft.jdbc.hander.AuthHandler;
 import cc.fastsoft.jdbc.hander.CommandHandler;
-import cc.fastsoft.jdbc.hander.HandshakeHandler;
-import cc.fastsoft.jdbc.protocol.Packet;
+import cc.fastsoft.jdbc.protocol.packet.AuthPacket;
+import cc.fastsoft.jdbc.protocol.packet.HandshakePacket;
+import cc.fastsoft.jdbc.protocol.MysqlPassword;
+import cc.fastsoft.jdbc.protocol.packet.Packet;
+import cc.fastsoft.jdbc.protocol.PacketFactory;
+import cc.fastsoft.jdbc.protocol.PacketHelper;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
@@ -14,43 +17,78 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ServerHandler extends SimpleChannelInboundHandler<Packet> {
     private static final Logger logger = LoggerFactory.getLogger(ServerHandler.class);
 
+    private static final int SCRAMBLE_LENGTH = 20;
+    private static final String DEFAULT_PASSWORD = "123456";
     private static final AtomicInteger activeConnections = new AtomicInteger(0);
 
-    private boolean authenticated = false;
-    private int clientCapabilities = 0;
-
-    private final HandshakeHandler handshakeHandler;
-    private final AuthHandler authHandler;
+    private final byte[] authPluginData;
     private final CommandHandler commandHandler;
+    private final ConnectContext connectContext;
 
     public ServerHandler() {
-        ConnectContext ctx = new ConnectContext();
+        this.connectContext = new ConnectContext();
+        this.authPluginData = MysqlPassword.createRandomString(SCRAMBLE_LENGTH);
         int currentConnections = activeConnections.get() + 1;
         logger.info("Creating new connection handler. Active connections: {}", currentConnections);
-        ctx.setConnectionId(currentConnections);
-        this.handshakeHandler = new HandshakeHandler(ctx);
-        this.authHandler = new AuthHandler("123456", ctx.getScramble());
+        this.connectContext.setConnectionId(currentConnections);
         this.commandHandler = new CommandHandler();
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        int count = activeConnections.incrementAndGet();
+        int connectId = activeConnections.incrementAndGet();
         logger.info("Client connected: {}. Total active connections: {}",
-                ctx.channel().remoteAddress(), count);
-        handshakeHandler.sendHandshake(ctx);
+                ctx.channel().remoteAddress(), connectId);
+        // Create HandshakePacket using factory
+        HandshakePacket handshakePacket = PacketFactory.createHandshakePacket(
+                (byte) 0,
+                connectId,
+                this.authPluginData
+        );
+
+        // Set server version
+        handshakePacket.setServerVersion("5.7.0-mock");
+        logger.debug("Sending handshake to {}, connection id: {}",
+                ctx.channel().remoteAddress(),  connectId);
+
+        // Send packet using PacketHelper
+        PacketHelper.sendMysqlPacket(ctx, handshakePacket);
+        logger.info("Handshake sent to {}", ctx.channel().remoteAddress());
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Packet packet) {
         byte sequenceId = (byte) (packet.getSequenceId() + 1); // Response seq = request seq + 1
 
-        if (!authenticated) {
-            AuthHandler.AuthResult result = authHandler.handleAuth(ctx, packet.getPayload(), sequenceId);
-            authenticated = result.isAuthenticated();
-            clientCapabilities = result.getClientCapabilities();
+        if (this.connectContext.isAuthenticated()) {
+            commandHandler.handleCommand(ctx,
+                    packet.getPayload(),
+                    sequenceId,
+                    this.connectContext.getClientCapabilities()
+            );
         } else {
-            commandHandler.handleCommand(ctx, packet.getPayload(), sequenceId, clientCapabilities);
+            try {
+                AuthPacket authPacket = PacketFactory.createAuthPacketFromBuf(packet.getPayload());
+                authPacket.setSequenceId(sequenceId);
+
+                // verify username and password
+                if (MysqlPassword.verifyPassword(DEFAULT_PASSWORD, authPluginData, authPacket.getAuthResponse(), authPacket.getAuthPluginName())) {
+                    this.connectContext.setUserName(authPacket.getUsername());
+                    this.connectContext.setDatabase(authPacket.getDatabase());
+                    this.connectContext.setClientCapabilities(authPacket.getCapabilityFlags());
+                    logger.info("User '{}' authenticated successfully from {}",
+                            authPacket.getUsername(), ctx.channel().remoteAddress());
+                    PacketHelper.sendOkPacket(ctx, "Authentication successful", sequenceId);
+                } else {
+                    logger.error("Authentication failed for user '{}' from {}",
+                            authPacket.getUsername(), ctx.channel().remoteAddress());
+                    PacketHelper.sendErrPacket(ctx, "Authentication failed", sequenceId);
+                }
+            } catch (Exception e) {
+                logger.error("Failed to verify user name from {}: {}",
+                        ctx.channel().remoteAddress(), e.getMessage());
+                PacketHelper.sendErrPacket(ctx, e.getMessage(), sequenceId);
+            }
         }
     }
 
@@ -77,4 +115,5 @@ public class ServerHandler extends SimpleChannelInboundHandler<Packet> {
     public static int getActiveConnectionCount() {
         return activeConnections.get();
     }
+
 }

@@ -1,5 +1,6 @@
-package cc.fastsoft.jdbc.protocol;
+package cc.fastsoft.jdbc.protocol.packet;
 
+import cc.fastsoft.jdbc.protocol.Constants;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
