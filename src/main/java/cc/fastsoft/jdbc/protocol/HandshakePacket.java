@@ -25,22 +25,11 @@ import java.nio.charset.StandardCharsets;
 public class HandshakePacket extends MysqlPacket {
 
     private static final byte PROTOCOL_VERSION = 10; // MySQL 4.1+
-
-    private static final int CLIENT_LONG_PASSWORD                    = 0x00000001;
-    private static final int CLIENT_LONG_FLAG                        = 0x00000004;
-    private static final int CLIENT_PROTOCOL_41                      = 0x00000200;
-    private static final int CLIENT_TRANSACTIONS                     = 0x00002000;
-    private static final int CLIENT_SECURE_CONNECTION                = 0x00008000;
-    private static final int CLIENT_PLUGIN_AUTH                      = 0x00080000;
-    private static final int CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA   = 0x00200000;
-    private static final int CLIENT_DEPRECATE_EOF                    = 0x01000000;
-
-    private static final int SERVER_STATUS_AUTOCOMMIT                = 0x0002;
     private byte protocolVersion;
     private String serverVersion;
     private int connectionId;
     private byte[] scramble; // 20 bytes auth challenge
-    private int capabilityFlags;
+    private MysqlCapability capability;
     private byte characterSet;
     private int statusFlags;
     private String authPluginName;
@@ -55,14 +44,7 @@ public class HandshakePacket extends MysqlPacket {
         this.serverVersion = "5.7.0-mock";
         this.connectionId = 1;
         this.scramble = new byte[20];
-        this.capabilityFlags = CLIENT_LONG_PASSWORD |
-                CLIENT_LONG_FLAG |
-                CLIENT_PROTOCOL_41 |
-                CLIENT_TRANSACTIONS |
-                CLIENT_SECURE_CONNECTION |
-                CLIENT_PLUGIN_AUTH |
-                CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |
-                CLIENT_DEPRECATE_EOF;
+        this.capability = MysqlCapability.DEFAULT_CAPABILITY;
         this.characterSet = (byte) 33; // utf8_general_ci
         this.statusFlags = (int) Constants.SERVER_STATUS_AUTOCOMMIT;
         this.authPluginName = Constants.MYSQL_NATIVE_PASSWORD;
@@ -85,7 +67,7 @@ public class HandshakePacket extends MysqlPacket {
         buffer.writeByte(protocolVersion);
 
         // Server version (null-terminated)
-        buffer.writeBytes((serverVersion + "\0").getBytes(StandardCharsets.US_ASCII));
+        buffer.writeBytes((serverVersion + "\0").getBytes(StandardCharsets.UTF_8));
 
         // Connection id
         buffer.writeIntLE(connectionId);
@@ -97,7 +79,7 @@ public class HandshakePacket extends MysqlPacket {
         buffer.writeByte(0x00);
 
         // Capability flags (lower 2 bytes)
-        buffer.writeShortLE(capabilityFlags & 0xFFFF);
+        buffer.writeShortLE(capability.getFlags() & 0xFFFF);
 
         // Character set
         buffer.writeByte(characterSet);
@@ -106,70 +88,34 @@ public class HandshakePacket extends MysqlPacket {
         buffer.writeShortLE(statusFlags);
 
         // Capability flags (upper 2 bytes)
-        buffer.writeShortLE((capabilityFlags >>> 16) & 0xFFFF);
+        buffer.writeShortLE(capability.getFlags() >> 16);
 
         // Auth plugin data length (scramble length + 1)
-        buffer.writeByte(21);
+        if (capability.isPluginAuth()) {
+            buffer.writeByte(scramble.length + 1); // 1 byte is '\0'
+        } else {
+            buffer.writeByte(0x00);
+        }
 
         // Reserved (10 bytes of 0x00)
         buffer.writeBytes(new byte[10]);
 
         // Auth-plugin-data-part-2 (remaining 12 bytes of scramble + terminating 0x00)
-        buffer.writeBytes(scramble, 8, 12);
-        buffer.writeByte(0x00);
+        if (capability.isSecureConnection()) {
+            buffer.writeBytes(scramble, 8, 12);
+            buffer.writeByte(0x00);
+        }
 
         // Auth plugin name (null-terminated) - MUST always write for MySQL protocol
-        if ((capabilityFlags & CLIENT_PLUGIN_AUTH) != 0) {
-            buffer.writeBytes(authPluginName.getBytes(StandardCharsets.US_ASCII));
+        if (capability.isPluginAuth()) {
+            buffer.writeBytes(authPluginName.getBytes(StandardCharsets.UTF_8));
             buffer.writeByte(0x00);
         }
     }
 
     @Override
     public void read(ByteBuf buffer) {
-        // Protocol version
-        protocolVersion = buffer.readByte();
 
-        // Server version (null-terminated)
-        serverVersion = PacketHelper.readNullTerminatedString(buffer);
-
-        // Connection id
-        connectionId = buffer.readIntLE();
-
-        // Auth-plugin-data-part-1 (8 bytes)
-        buffer.readBytes(scramble, 0, 8);
-
-        // Filler
-        buffer.readByte();
-
-        // Capability flags (lower 2 bytes)
-        int capLower = buffer.readUnsignedShortLE();
-
-        // Character set
-        characterSet = buffer.readByte();
-
-        // Status flags
-        statusFlags = buffer.readUnsignedShortLE();
-
-        // Capability flags (upper 2 bytes)
-        int capUpper = buffer.readUnsignedShortLE();
-        capabilityFlags = capLower | (capUpper << 16);
-
-        // Auth plugin data length
-        int authDataLen = buffer.readUnsignedByte();
-
-        // Reserved (10 bytes)
-        buffer.skipBytes(10);
-
-        // Auth-plugin-data-part-2
-        int part2Len = Math.max(13, authDataLen - 8);
-        buffer.readBytes(scramble, 8, Math.min(12, part2Len - 1));
-        buffer.skipBytes(part2Len - 12); // Skip remaining including terminating byte
-
-        // Auth plugin name
-        if (buffer.isReadable()) {
-            authPluginName = PacketHelper.readNullTerminatedString(buffer);
-        }
     }
 
     @Override
@@ -223,13 +169,11 @@ public class HandshakePacket extends MysqlPacket {
     public void setScramble(byte[] scramble) {
         this.scramble = scramble;
     }
-
-    public int getCapabilityFlags() {
-        return capabilityFlags;
+    public MysqlCapability getCapability() {
+        return capability;
     }
-
-    public void setCapabilityFlags(int capabilityFlags) {
-        this.capabilityFlags = capabilityFlags;
+    public void setCapability(MysqlCapability capability) {
+        this.capability = capability;
     }
 
     public byte getCharacterSet() {
@@ -263,7 +207,7 @@ public class HandshakePacket extends MysqlPacket {
                 ", protocolVersion=" + protocolVersion +
                 ", serverVersion='" + serverVersion + '\'' +
                 ", connectionId=" + connectionId +
-                ", capabilityFlags=" + capabilityFlags +
+                ", capabilityFlags=" + capability.getFlags() +
                 ", characterSet=" + characterSet +
                 ", statusFlags=" + statusFlags +
                 ", authPluginName='" + authPluginName + '\'' +

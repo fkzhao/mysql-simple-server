@@ -143,8 +143,6 @@ public class AuthHandler {
                 username, authOk, authPluginName);
 
         // Send response based on authentication result
-//        PacketHelper.sendOkPacket(ctx, "Authenticated", sequenceId);
-//        return new AuthResult(true, clientCapabilities, username, database, authPluginName);
         if (authOk) {
             // Authentication successful
             PacketHelper.sendOkPacket(ctx, "Authenticated", sequenceId);
