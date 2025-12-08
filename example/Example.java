@@ -1,4 +1,4 @@
-package cc.fastsoft.example;
+package cc.fastsoft.jdbc.example;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
