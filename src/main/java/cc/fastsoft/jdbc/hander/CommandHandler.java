@@ -29,6 +29,11 @@ public class CommandHandler {
                 logger.debug("Received COM_QUIT from {}", ctx.channel().remoteAddress());
                 ctx.close();
                 break;
+            case 0x02: // COM_INIT_DB (USE database)
+                String dbName = PacketHelper.readString(payload);
+                logger.info("Switching to database '{}' from {}", dbName, ctx.channel().remoteAddress());
+                queryHandler.handleInitDb(ctx, dbName, sequenceId);
+                break;
 
             case 0x03: // COM_QUERY
                 String sql = PacketHelper.readString(payload);
