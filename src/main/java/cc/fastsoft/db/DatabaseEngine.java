@@ -7,7 +7,7 @@ import cc.fastsoft.db.core.RowCodec;
 import cc.fastsoft.db.core.StorageManager;
 import cc.fastsoft.db.schema.Column;
 import cc.fastsoft.db.schema.TableSchema;
-import cc.fastsoft.storage.rocksdb.RocksDbHandle;
+import cc.fastsoft.rocksdb.RocksDbHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;

@@ -1,4 +1,4 @@
-package cc.fastsoft.storage.rocksdb;
+package cc.fastsoft.rocksdb;
 
 import cc.fastsoft.utils.IOUtils;
 import org.rocksdb.ColumnFamilyDescriptor;
